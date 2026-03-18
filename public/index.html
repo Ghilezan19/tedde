@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HiLook Camera - Live View</title>
+  <style>
+    /* ---- Reset & Base ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 2s infinite;
+    }
+
+    .header h1 .dot.online { background: #22c55e; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.online { background: #166534; color: #86efac; }
+    .status-badge.offline { background: #7f1d1d; color: #fca5a5; }
+    .status-badge.connecting { background: #713f12; color: #fde047; }
+
+    /* ---- Layout ---- */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    /* ---- Card ---- */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-body { padding: 20px; }
+
+    /* ---- Stream View ---- */
+    .stream-container {
+      position: relative;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stream-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .stream-placeholder {
+      text-align: center;
+      color: #64748b;
+    }
+
+    .stream-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+    .stream-placeholder p { font-size: 14px; }
+
+    .stream-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .stream-tag {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .stream-tag.live { color: #ef4444; }
+    .stream-tag.rec { color: #ef4444; animation: pulse 1s infinite; }
+
+    /* ---- Recording Bar ---- */
+    .rec-bar {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(220, 38, 38, 0.12);
+      border: 1px solid rgba(220, 38, 38, 0.35);
+      border-radius: 8px;
+    }
+    .rec-bar.active { display: flex; }
+    .rec-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ef4444; flex-shrink: 0;
+      animation: pulse 1s infinite;
+    }
+    .rec-label { font-size: 13px; font-weight: 600; color: #fca5a5; }
+    .rec-timer { font-size: 13px; font-family: 'Consolas', monospace; color: #e2e8f0; margin-left: auto; }
+    .rec-filename { font-size: 11px; color: #94a3b8; }
+
+    /* ---- Recordings List ---- */
+    .rec-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+    .rec-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .rec-item .rec-name { flex: 1; color: #e2e8f0; word-break: break-all; }
+    .rec-item .rec-size { color: #64748b; font-size: 11px; white-space: nowrap; }
+    .rec-item .rec-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .btn-icon {
+      padding: 5px 8px; border: 1px solid #334155; border-radius: 6px;
+      background: #1e293b; color: #e2e8f0; font-size: 13px; cursor: pointer;
+    }
+    .btn-icon:hover { background: #334155; }
+    .btn-icon.del:hover { background: #7f1d1d; border-color: #dc2626; }
+
+    /* ---- Camera Switcher ---- */
+    .camera-switcher {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .camera-btn {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .camera-btn.active {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #fff;
+    }
+    .camera-btn:hover:not(.active) {
+      border-color: #475569;
+      background: #334155;
+    }
+    .camera-btn .cam-number {
+      font-size: 20px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .camera-btn .cam-type {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+
+    /* ---- PTZ Joystick ---- */
+    .ptz-container {
+      display: none;
+      margin-top: 20px;
+    }
+    .ptz-container.active { display: block; }
+    .ptz-joystick {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 16px;
+      position: relative;
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .ptz-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      background: #334155;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #94a3b8;
+    }
+    .ptz-direction {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid #3b82f6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #3b82f6;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .ptz-direction:hover {
+      background: rgba(59, 130, 246, 0.3);
+      transform: scale(1.05);
+    }
+    .ptz-direction.up { top: 10px; left: 75px; }
+    .ptz-direction.down { bottom: 10px; left: 75px; }
+    .ptz-direction.left { left: 10px; top: 75px; }
+    .ptz-direction.right { right: 10px; top: 75px; }
+    .ptz-direction.up-left { top: 30px; left: 30px; }
+    .ptz-direction.up-right { top: 30px; right: 30px; }
+    .ptz-direction.down-left { bottom: 30px; left: 30px; }
+    .ptz-direction.down-right { bottom: 30px; right: 30px; }
+    .ptz-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ptz-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .ptz-row label {
+      font-size: 12px;
+      color: #94a3b8;
+      min-width: 60px;
+    }
+    .ptz-row input, .ptz-row select {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 13px;
+    }
+    .ptz-row .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* ---- Controls ---- */
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover { background: #334155; border-color: #475569; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #1d4ed8; }
+
+    .btn-danger {
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #fff;
+    }
+
+    .btn-danger:hover { background: #b91c1c; }
+
+    .btn-success {
+      background: #16a34a;
+      border-color: #16a34a;
+      color: #fff;
+    }
+
+    .btn-success:hover { background: #15803d; }
+
+    /* ---- Settings ---- */
+    .setting-group {
+      margin-bottom: 16px;
+    }
+
+    .setting-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .setting-group select,
+    .setting-group input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+
+    .setting-group select:focus,
+    .setting-group input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+
+    /* ---- Snapshot Gallery ---- */
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .gallery-item {
+      position: relative;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid #334155;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-item:hover { border-color: #2563eb; }
+
+    .gallery-item .time {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 4px 6px;
+      background: rgba(0, 0, 0, 0.8);
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    /* ---- Log ---- */
+    .log {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    .log .info { color: #38bdf8; }
+    .log .success { color: #4ade80; }
+    .log .error { color: #f87171; }
+    .log .warn { color: #fbbf24; }
+
+    /* ---- Info Grid ---- */
+    .info-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 12px;
+      font-size: 13px;
+    }
+
+    .info-grid dt { color: #64748b; font-weight: 500; }
+    .info-grid dd { color: #e2e8f0; word-break: break-all; }
+
+    /* ---- Snapshot Modal ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal-content {
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+
+    .modal-content img {
+      max-width: 100%;
+      max-height: 85vh;
+      border-radius: 8px;
+    }
+
+    .modal-close {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 101;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>
+      <div class="dot" id="statusDot"></div>
+      HiLook Camera
+    </h1>
+    <span class="status-badge connecting" id="statusBadge">Se conectează...</span>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container">
+    <!-- Left Column: Stream + Controls -->
+    <div>
+      <!-- Live Stream -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Live View</h2>
+          <span id="streamInfo" style="font-size: 12px; color: #64748b;"></span>
+        </div>
+        <div class="card-body" style="padding: 12px;">
+          <div class="stream-container" id="streamContainer">
+            <div class="stream-placeholder" id="streamPlaceholder">
+              <div class="icon">📷</div>
+              <p>Apasă "Start Stream" pentru a porni</p>
+            </div>
+            <img id="streamImg" style="display: none;" alt="Live Stream">
+            <div class="stream-overlay" id="streamOverlay" style="display: none;">
+              <span class="stream-tag live">● LIVE</span>
+              <span class="stream-tag" id="qualityTag">SUB</span>
+              <span class="stream-tag" id="fpsTag">5 FPS</span>
+            </div>
+          </div>
+
+          <!-- Camera Switcher -->
+          <div class="camera-switcher">
+            <button class="camera-btn active" id="cam1Btn" onclick="switchCamera(1)">
+              <span class="cam-number">1</span>
+              <span class="cam-type">Fix</span>
+            </button>
+            <button class="camera-btn" id="cam2Btn" onclick="switchCamera(2)">
+              <span class="cam-number">2</span>
+              <span class="cam-type">PTZ</span>
+            </button>
+            <button class="btn" onclick="diagnoseCamera2()" style="padding: 8px 12px; font-size: 12px;" title="Diagnostic Camera 2">🔍</button>
+          </div>
+
+          <!-- Controls -->
+          <div class="controls">
+            <button class="btn btn-primary" id="btnStartStream" onclick="startStream()">▶ Start Stream</button>
+            <button class="btn btn-danger" id="btnStopStream" onclick="stopStream()" style="display: none;">⏹ Stop Stream</button>
+            <button class="btn btn-success" onclick="takeSnapshot()">📸 Snapshot</button>
+            <button class="btn" onclick="saveSnapshot()">💾 Salvează Snapshot</button>
+            <button class="btn" id="btnStartRec" onclick="startRecording()" style="background:#7c3aed;border-color:#7c3aed;color:#fff;">⏺ Start Rec</button>
+            <button class="btn btn-danger" id="btnStopRec" onclick="stopRecording()" style="display:none;">⏹ Stop Rec</button>
+            <button class="btn" onclick="checkStatus()">🔍 Verifică Status</button>
+          </div>
+
+          <!-- Recording active bar -->
+          <div class="rec-bar" id="recBar">
+            <div class="rec-dot"></div>
+            <span class="rec-label">REC</span>
+            <span class="rec-filename" id="recFilename"></span>
+            <span class="rec-timer" id="recTimer">00:00:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2>Log</h2>
+          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="clearLog()">Șterge</button>
+        </div>
+        <div class="card-body">
+          <div class="log" id="logContainer"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Settings + Snapshots + Info -->
+    <div>
+      <!-- Stream Settings -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Setări Stream</h2>
+        </div>
+        <div class="card-body">
+          <div class="setting-group">
+            <label>Calitate</label>
+            <select id="settingQuality">
+              <option value="sub">Sub Stream (mai rapid, mai puțin trafic)</option>
+              <option value="main">Main Stream (rezoluție maximă)</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>FPS (cadre pe secundă)</label>
+            <select id="settingFps">
+              <option value="2">2 FPS (economie bandă)</option>
+              <option value="5" selected>5 FPS (recomandat)</option>
+              <option value="10">10 FPS</option>
+              <option value="15">15 FPS</option>
+              <option value="25">25 FPS (fluid)</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label>Lățime (px, gol = original)</label>
+            <input type="number" id="settingWidth" placeholder="ex: 640, 1280" min="320" max="1920">
+          </div>
+        </div>
+      </div>
+
+      <!-- PTZ Controls (Camera 2 only) -->
+      <div class="card ptz-container" id="ptzContainer" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2>PTZ Control</h2>
+        </div>
+        <div class="card-body">
+          <div class="ptz-joystick" id="ptzJoystick">
+            <div class="ptz-center">⦿</div>
+            <div class="ptz-direction up" data-dir="up">↑</div>
+            <div class="ptz-direction down" data-dir="down">↓</div>
+            <div class="ptz-direction left" data-dir="left">←</div>
+            <div class="ptz-direction right" data-dir="right">→</div>
+            <div class="ptz-direction up-left" data-dir="up-left">↖</div>
+            <div class="ptz-direction up-right" data-dir="up-right">↗</div>
+            <div class="ptz-direction down-left" data-dir="down-left">↙</div>
+            <div class="ptz-direction down-right" data-dir="down-right">↘</div>
+          </div>
+          <div class="ptz-controls">
+            <div class="ptz-row">
+              <label>Speed</label>
+              <input type="range" id="ptzSpeed" min="1" max="7" value="5">
+              <span id="ptzSpeedValue">5</span>
+            </div>
+            <div class="ptz-row">
+              <label>Goto Preset</label>
+              <input type="number" id="ptzPreset" min="1" max="255" placeholder="1-255">
+              <button class="btn btn-primary" onclick="ptzGotoPreset()">Go</button>
+            </div>
+            <div class="ptz-row">
+              <label>Position</label>
+              <input type="number" id="ptzX" min="0" max="360" placeholder="X">
+              <input type="number" id="ptzY" min="0" max="180" placeholder="Y">
+              <input type="number" id="ptzZoom" min="1" max="10" placeholder="Zoom">
+              <button class="btn btn-primary" onclick="ptzGotoPosition()">Go</button>
+            </div>
+            <div class="ptz-row">
+              <button class="btn" onclick="ptzStop()">⏹ Stop</button>
+              <button class="btn" onclick="ptzStatus()">📍 Status</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Înregistrări -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2>Înregistrări</h2>
+          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="loadRecordings()">🔄 Refresh</button>
+        </div>
+        <div class="card-body">
+          <div class="rec-list" id="recList">
+            <p style="color: #64748b; font-size: 13px;">Nicio înregistrare salvată.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Snapshots -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2>Snapshots Salvate</h2>
+          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="loadSnapshots()">🔄 Refresh</button>
+        </div>
+        <div class="card-body">
+          <div class="gallery" id="galleryContainer">
+            <p style="color: #64748b; font-size: 13px; grid-column: 1 / -1;">Niciun snapshot salvat încă.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Camera Info -->
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2>Informații Cameră</h2>
+        </div>
+        <div class="card-body">
+          <dl class="info-grid" id="cameraInfo">
+            <dt>IP</dt><dd>Se încarcă...</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Snapshot Modal -->
+  <div class="modal-overlay" id="snapshotModal" onclick="closeModal()">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-content">
+      <img id="modalImg" src="" alt="Snapshot">
+    </div>
+  </div>
+
+  <script>
+    // ---- State ----
+    let isStreaming = false;
+    let streamStartTime = null;
+    let isRecording = false;
+    let recStartTime = null;
+    let recTimerInterval = null;
+    let currentCamera = 1;
+    let ptzMoveInterval = null;
+
+    // ---- Log ----
+    function addLog(message, type = "info") {
+      const log = document.getElementById("logContainer");
+      const time = new Date().toLocaleTimeString("ro-RO");
+      log.innerHTML += `<div class="${type}">[${time}] ${message}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById("logContainer").innerHTML = "";
+    }
+
+    // ---- Stream Controls ----
+    function startStream() {
+      const quality = document.getElementById("settingQuality").value;
+      const fps = document.getElementById("settingFps").value;
+      const width = document.getElementById("settingWidth").value;
+
+      let url = `/api/stream?quality=${quality}&fps=${fps}`;
+      if (width) url += `&width=${width}`;
+
+      addLog(`Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
+
+      const img = document.getElementById("streamImg");
+      const placeholder = document.getElementById("streamPlaceholder");
+      const overlay = document.getElementById("streamOverlay");
+
+      // Setăm sursa imaginii - browserul va reda MJPEG automat
+      img.src = url;
+      img.style.display = "block";
+      placeholder.style.display = "none";
+      overlay.style.display = "flex";
+
+      document.getElementById("qualityTag").textContent = quality.toUpperCase();
+      document.getElementById("fpsTag").textContent = fps + " FPS";
+
+      document.getElementById("btnStartStream").style.display = "none";
+      document.getElementById("btnStopStream").style.display = "flex";
+
+      isStreaming = true;
+      streamStartTime = Date.now();
+      updateStreamInfo();
+
+      img.onerror = () => {
+        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
+        setTimeout(() => {
+          if (isStreaming) {
+            addLog("Reconectare automată...", "info");
+            img.src = url + "&t=" + Date.now(); // Cache bust
+          }
+        }, 3000);
+      };
+
+      addLog("Stream pornit cu succes", "success");
+    }
+
+    function stopStream() {
+      const img = document.getElementById("streamImg");
+      const placeholder = document.getElementById("streamPlaceholder");
+      const overlay = document.getElementById("streamOverlay");
+
+      img.src = "";
+      img.style.display = "none";
+      placeholder.style.display = "block";
+      overlay.style.display = "none";
+
+      document.getElementById("btnStartStream").style.display = "flex";
+      document.getElementById("btnStopStream").style.display = "none";
+      document.getElementById("streamInfo").textContent = "";
+
+      isStreaming = false;
+      streamStartTime = null;
+
+      addLog("Stream oprit", "warn");
+    }
+
+    function updateStreamInfo() {
+      if (!isStreaming || !streamStartTime) return;
+      const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      document.getElementById("streamInfo").textContent =
+        `Activ: ${mins}m ${secs.toString().padStart(2, "0")}s`;
+      setTimeout(updateStreamInfo, 1000);
+    }
+
+    // ---- Snapshot ----
+    async function takeSnapshot() {
+      addLog("Capturez snapshot...", "info");
+      try {
+        const quality = document.getElementById("settingQuality").value;
+        const url = `/api/snapshot?quality=${quality}`;
+        
+        // Deschide snapshot-ul în tab nou
+        window.open(url, "_blank");
+        addLog("Snapshot capturat - deschis în tab nou", "success");
+      } catch (err) {
+        addLog(`Eroare snapshot: ${err.message}`, "error");
+      }
+    }
+
+    async function saveSnapshot() {
+      addLog("Salvez snapshot pe disc...", "info");
+      try {
+        const quality = document.getElementById("settingQuality").value;
+        const res = await fetch(`/api/snapshot/save?quality=${quality}`);
+        const data = await res.json();
+
+        if (data.success) {
+          addLog(`Salvat: ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`, "success");
+          loadSnapshots();
+        } else {
+          addLog(`Eroare: ${data.error}`, "error");
+        }
+      } catch (err) {
+        addLog(`Eroare salvare: ${err.message}`, "error");
+      }
+    }
+
+    // ---- Load Snapshots Gallery ----
+    async function loadSnapshots() {
+      try {
+        const res = await fetch("/api/snapshots");
+        const data = await res.json();
+        const gallery = document.getElementById("galleryContainer");
+
+        if (data.count === 0) {
+          gallery.innerHTML = '<p style="color: #64748b; font-size: 13px; grid-column: 1 / -1;">Niciun snapshot salvat.</p>';
+          return;
+        }
+
+        gallery.innerHTML = data.files.map(f => `
+          <div class="gallery-item" onclick="openModal('/snapshots/${f.filename}')">
+            <img src="${f.url}" alt="${f.filename}" loading="lazy">
+            <div class="time">${new Date(f.created).toLocaleString("ro-RO")}</div>
+          </div>
+        `).join("");
+      } catch (err) {
+        addLog("Nu s-au putut încărca snapshot-urile", "error");
+      }
+    }
+
+    // ---- Modal ----
+    function openModal(src) {
+      document.getElementById("modalImg").src = src;
+      document.getElementById("snapshotModal").classList.add("active");
+    }
+
+    function closeModal() {
+      document.getElementById("snapshotModal").classList.remove("active");
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeModal();
+    });
+
+    // ---- Check Status ----
+    async function checkStatus() {
+      addLog("Verific statusul camerei...", "info");
+      const dot = document.getElementById("statusDot");
+      const badge = document.getElementById("statusBadge");
+
+      badge.className = "status-badge connecting";
+      badge.textContent = "Se verifică...";
+
+      try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+
+        if (data.camera.online) {
+          dot.classList.add("online");
+          badge.className = "status-badge online";
+          badge.textContent = "Online";
+          addLog(`Camera online (${data.camera.responseTime})`, "success");
+          if (data.stream.video) {
+            addLog(`Video: ${data.stream.video}`, "info");
+          }
+        } else {
+          dot.classList.remove("online");
+          badge.className = "status-badge offline";
+          badge.textContent = "Offline";
+          addLog("Camera nu răspunde!", "error");
+        }
+      } catch (err) {
+        dot.classList.remove("online");
+        badge.className = "status-badge offline";
+        badge.textContent = "Eroare";
+        addLog(`Eroare verificare: ${err.message}`, "error");
+      }
+    }
+
+    // ---- Load Camera Info ----
+    async function loadInfo() {
+      try {
+        const res = await fetch("/api/info");
+        const data = await res.json();
+        const info = document.getElementById("cameraInfo");
+        info.innerHTML = `
+          <dt>IP</dt><dd>${data.camera.ip}</dd>
+          <dt>Port RTSP</dt><dd>${data.camera.rtspPort}</dd>
+          <dt>Main Stream</dt><dd>${data.camera.mainStream}</dd>
+          <dt>Sub Stream</dt><dd>${data.camera.subStream}</dd>
+          <dt>Server Port</dt><dd>${data.server.port}</dd>
+        `;
+      } catch (err) {
+        console.error("Nu s-au putut încărca informațiile");
+      }
+    }
+
+    // ---- Recording Controls ----
+    async function startRecording() {
+      const quality = document.getElementById("settingQuality").value;
+      addLog(`Pornesc înregistrarea (${quality})...`, "info");
+      try {
+        const res = await fetch(`/api/record/start?quality=${quality}`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          addLog(`Eroare: ${data.error}`, "error"); return;
+        }
+        isRecording = true;
+        recStartTime = Date.now();
+        document.getElementById("btnStartRec").style.display = "none";
+        document.getElementById("btnStopRec").style.display = "flex";
+        document.getElementById("recBar").classList.add("active");
+        document.getElementById("recFilename").textContent = data.filename;
+        // Adaugă tag REC pe stream overlay
+        const overlay = document.getElementById("streamOverlay");
+        if (!document.getElementById("recTag")) {
+          const tag = document.createElement("span");
+          tag.className = "stream-tag rec";
+          tag.id = "recTag";
+          tag.textContent = "⏺ REC";
+          overlay.appendChild(tag);
+        }
+        recTimerInterval = setInterval(updateRecTimer, 1000);
+        addLog(`Înregistrare pornită: ${data.filename}`, "success");
+      } catch (err) {
+        addLog(`Eroare pornire înregistrare: ${err.message}`, "error");
+      }
+    }
+
+    async function stopRecording() {
+      addLog("Opresc înregistrarea...", "warn");
+      try {
+        const res = await fetch("/api/record/stop", { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          addLog(`Eroare: ${data.error}`, "error"); return;
+        }
+        isRecording = false;
+        recStartTime = null;
+        clearInterval(recTimerInterval);
+        document.getElementById("btnStartRec").style.display = "flex";
+        document.getElementById("btnStopRec").style.display = "none";
+        document.getElementById("recBar").classList.remove("active");
+        document.getElementById("recTimer").textContent = "00:00:00";
+        const recTag = document.getElementById("recTag");
+        if (recTag) recTag.remove();
+        addLog(`Salvat: ${data.filename} (${data.duration})`, "success");
+        setTimeout(loadRecordings, 1500); // așteptăm să se finalizeze fișierul
+      } catch (err) {
+        addLog(`Eroare oprire înregistrare: ${err.message}`, "error");
+      }
+    }
+
+    function updateRecTimer() {
+      if (!recStartTime) return;
+      const s = Math.floor((Date.now() - recStartTime) / 1000);
+      const h = Math.floor(s / 3600).toString().padStart(2, "0");
+      const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
+      const sec = (s % 60).toString().padStart(2, "0");
+      document.getElementById("recTimer").textContent = `${h}:${m}:${sec}`;
+    }
+
+    // ---- Load Recordings List ----
+    async function loadRecordings() {
+      try {
+        const res = await fetch("/api/recordings");
+        const data = await res.json();
+        const list = document.getElementById("recList");
+        if (data.count === 0) {
+          list.innerHTML = '<p style="color: #64748b; font-size: 13px;">Nicio înregistrare salvată.</p>';
+          return;
+        }
+        list.innerHTML = data.files.map(f => `
+          <div class="rec-item">
+            <span>🎥</span>
+            <div class="rec-name">
+              <div>${f.filename}</div>
+              <div style="font-size:11px;color:#64748b;">${new Date(f.created).toLocaleString("ro-RO")}</div>
+            </div>
+            <span class="rec-size">${f.sizeMB} MB</span>
+            <div class="rec-actions">
+              <a href="${f.downloadUrl}" download title="Descarcă"><button class="btn-icon">⬇</button></a>
+              <button class="btn-icon del" title="Șterge" onclick="deleteRecording('${f.filename}')">🗑</button>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        addLog("Nu s-au putut încărca înregistrările", "error");
+      }
+    }
+
+    async function deleteRecording(filename) {
+      if (!confirm(`Ștergi înregistrarea ${filename}?`)) return;
+      try {
+        const res = await fetch(`/api/recordings/${encodeURIComponent(filename)}/delete`, { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          addLog(`Șters: ${filename}`, "warn");
+          loadRecordings();
+        } else {
+          addLog(`Eroare: ${data.error}`, "error");
+        }
+      } catch (err) {
+        addLog(`Eroare ștergere: ${err.message}`, "error");
+      }
+    }
+
+    // ---- Camera 2 Diagnostic ----
+    async function diagnoseCamera2() {
+      addLog('🔍 Diagnostic Camera 2...', 'info');
+      try {
+        const res = await fetch('/api/diagnostic/camera2');
+        const data = await res.json();
+        
+        addLog(`=== DIAGNOSTIC CAMERA 2 ===`, 'info');
+        addLog(`IP: ${data.config.ip}`, 'info');
+        addLog(`Username: ${data.config.username}`, 'info');
+        addLog(`Password: ${data.config.password}`, 'info');
+        addLog(`RTSP Port: ${data.config.rtspPort}`, 'info');
+        addLog(`HTTP Port: ${data.config.httpPort}`, 'info');
+        addLog(`SDK Port: ${data.config.sdkPort}`, 'info');
+        
+        addLog(`--- CONNECTIVITY TESTS ---`, 'info');
+        Object.entries(data.tests).forEach(([test, result]) => {
+          if (result.success) {
+            addLog(`✅ ${test}: ${result.status} ${result.statusText}`, 'success');
+          } else {
+            addLog(`❌ ${test}: ${result.error}`, 'error');
+          }
+        });
+        
+        addLog(`--- RTSP URLS ---`, 'info');
+        addLog(`Main: ${data.urls.rtspMain}`, 'info');
+        addLog(`Sub: ${data.urls.rtspSub}`, 'info');
+        
+        // Check if any tests passed
+        const hasConnection = Object.values(data.tests).some(test => test.success);
+        if (hasConnection) {
+          addLog(`🎯 Camera 2 parțial accesibilă - verifică parola/RTSP`, 'warn');
+        } else {
+          addLog(`🚫 Camera 2 offline - verifică rețea/IP`, 'error');
+        }
+        
+      } catch (err) {
+        addLog(`Diagnostic failed: ${err.message}`, 'error');
+      }
+    }
+
+    // ---- Camera Switching ----
+    function switchCamera(camera) {
+      if (isStreaming) stopStream();
+      if (isRecording) stopRecording();
+      
+      currentCamera = camera;
+      
+      // Force clear current image
+      const img = document.getElementById("streamImg");
+      img.src = ""; // Clear src first
+      img.style.display = "none";
+      
+      // Reset placeholder
+      const placeholder = document.getElementById("streamPlaceholder");
+      placeholder.style.display = "block";
+      
+      // Hide overlay
+      const overlay = document.getElementById("streamOverlay");
+      overlay.style.display = "none";
+      
+      // Update UI
+      document.querySelectorAll('.camera-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`cam${camera}Btn`).classList.add('active');
+      
+      // Show/hide PTZ controls
+      const ptzContainer = document.getElementById('ptzContainer');
+      if (camera === 2) {
+        ptzContainer.classList.add('active');
+        addLog('Switchat la Camera 2 (PTZ)', 'info');
+        // Add warning that PTZ might be offline
+        setTimeout(() => {
+          addLog('ℹ️ Notă: Camera 2 trebuie să fie online pentru stream și PTZ', 'warn');
+        }, 1000);
+      } else {
+        ptzContainer.classList.remove('active');
+        addLog('Switchat la Camera 1 (Fix)', 'info');
+      }
+    }
+
+    // ---- Check Camera Status ----
+    async function checkCameraStatus(camera) {
+      try {
+        const res = await fetch(`/api/snapshot?camera=${camera}&quality=sub`, { 
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        if (res.ok) {
+          return { online: true, error: null };
+        } else {
+          return { online: false, error: `HTTP ${res.status}` };
+        }
+      } catch (err) {
+        return { online: false, error: err.message };
+      }
+    }
+
+    // ---- Enhanced Start Stream with Camera Check ----
+    async function startStream() {
+      // Check camera status first
+      addLog(`Verific Camera ${currentCamera}...`, 'info');
+      const status = await checkCameraStatus(currentCamera);
+      
+      if (!status.online) {
+        addLog(`❌ Camera ${currentCamera} offline: ${status.error}`, 'error');
+        addLog(`Camera ${currentCamera} nu este accesibilă - verifică IP/parolă/port`, 'warn');
+        return;
+      }
+      
+      const quality = document.getElementById("settingQuality").value;
+      const fps = document.getElementById("settingFps").value;
+      const width = document.getElementById("settingWidth").value;
+
+      let url = `/api/stream?camera=${currentCamera}&quality=${quality}&fps=${fps}`;
+      if (width) url += `&width=${width}`;
+
+      addLog(`Camera ${currentCamera} - Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
+
+      const img = document.getElementById("streamImg");
+      const placeholder = document.getElementById("streamPlaceholder");
+      const overlay = document.getElementById("streamOverlay");
+
+      img.src = url;
+      img.style.display = "block";
+      placeholder.style.display = "none";
+      overlay.style.display = "flex";
+
+      document.getElementById("qualityTag").textContent = quality.toUpperCase();
+      document.getElementById("fpsTag").textContent = fps + " FPS";
+
+      document.getElementById("btnStartStream").style.display = "none";
+      document.getElementById("btnStopStream").style.display = "flex";
+
+      isStreaming = true;
+      streamStartTime = Date.now();
+      updateStreamInfo();
+
+      // Better error handling - check if camera is accessible
+      img.onerror = () => {
+        addLog(`Camera ${currentCamera} - Stream nu răspunde (timeout sau cameră offline)`, "error");
+        
+        // Don't auto-reconnect for Camera 2 (PTZ likely offline)
+        if (currentCamera === 2) {
+          addLog("Camera 2 (PTZ) nu este accesibilă - verifică conexiunea", "warn");
+          stopStream();
+          return;
+        }
+        
+        // Auto-reconnect only for Camera 1
+        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
+        setTimeout(() => {
+          if (isStreaming && currentCamera === 1) {
+            addLog("Reconectare automată...", "info");
+            img.src = url + "&t=" + Date.now();
+          }
+        }, 3000);
+      };
+
+      // Load timeout - if no frame loads in 10 seconds, stop
+      const loadTimeout = setTimeout(() => {
+        if (isStreaming && !img.complete) {
+          addLog(`Camera ${currentCamera} - Timeout la încărcare`, "error");
+          stopStream();
+        }
+      }, 10000);
+
+      img.onload = () => {
+        clearTimeout(loadTimeout);
+        addLog("Stream pornit cu succes", "success");
+      };
+    }
+    function initPTZ() {
+      // Joystick direction buttons
+      document.querySelectorAll('.ptz-direction').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const direction = btn.dataset.dir;
+          const speed = document.getElementById('ptzSpeed').value;
+          ptzMoveStart(direction, speed);
+        });
+        
+        btn.addEventListener('mouseup', () => ptzMoveStop());
+        btn.addEventListener('mouseleave', () => ptzMoveStop());
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          const direction = btn.dataset.dir;
+          const speed = document.getElementById('ptzSpeed').value;
+          ptzMoveStart(direction, speed);
+        });
+        btn.addEventListener('touchend', () => ptzMoveStop());
+      });
+      
+      // Speed slider
+      document.getElementById('ptzSpeed').addEventListener('input', (e) => {
+        document.getElementById('ptzSpeedValue').textContent = e.target.value;
+      });
+    }
+
+    function ptzMoveStart(direction, speed) {
+      if (ptzMoveInterval) return;
+      
+      addLog(`PTZ move: ${direction} speed=${speed}`, 'info');
+      
+      // Send move command
+      fetch('/api/ptz/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction, speed: parseInt(speed) })
+      }).then(res => res.json()).then(data => {
+        if (!data.success) {
+          addLog(`PTZ move error: ${data.error}`, 'error');
+        }
+      }).catch(err => {
+        addLog(`PTZ move failed: ${err.message}`, 'error');
+      });
+      
+      // Keep sending move command every 500ms while holding
+      ptzMoveInterval = setInterval(() => {
+        fetch('/api/ptz/move', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ direction, speed: parseInt(speed) })
+        });
+      }, 500);
+    }
+
+    function ptzMoveStop() {
+      if (ptzMoveInterval) {
+        clearInterval(ptzMoveInterval);
+        ptzMoveInterval = null;
+        
+        fetch('/api/ptz/stop', { method: 'POST' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) addLog('PTZ movement stopped', 'info');
+          });
+      }
+    }
+
+    function ptzGotoPreset() {
+      const preset = parseInt(document.getElementById('ptzPreset').value);
+      if (!preset || preset < 1 || preset > 255) {
+        addLog('PTZ preset: introdu un număr între 1-255', 'error');
+        return;
+      }
+      
+      addLog(`PTZ goto preset: ${preset}`, 'info');
+      fetch('/api/ptz/goto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preset })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          addLog(`PTZ moved to preset ${preset}`, 'success');
+        } else {
+          addLog(`PTZ goto error: ${data.error}`, 'error');
+        }
+      }).catch(err => {
+        addLog(`PTZ goto failed: ${err.message}`, 'error');
+      });
+    }
+
+    function ptzGotoPosition() {
+      const x = parseFloat(document.getElementById('ptzX').value);
+      const y = parseFloat(document.getElementById('ptzY').value);
+      const zoom = parseFloat(document.getElementById('ptzZoom').value);
+      
+      if (isNaN(x) || isNaN(y) || isNaN(zoom)) {
+        addLog('PTZ position: introdu valori valide pentru X, Y, Zoom', 'error');
+        return;
+      }
+      
+      addLog(`PTZ goto position: x=${x}, y=${y}, zoom=${zoom}`, 'info');
+      fetch('/api/ptz/position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x, y, zoom })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          addLog(`PTZ moved to position`, 'success');
+        } else {
+          addLog(`PTZ position error: ${data.error}`, 'error');
+        }
+      }).catch(err => {
+        addLog(`PTZ position failed: ${err.message}`, 'error');
+      });
+    }
+
+    function ptzStop() {
+      addLog('PTZ stop movement', 'info');
+      fetch('/api/ptz/stop', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            addLog('PTZ stopped', 'success');
+          } else {
+            addLog(`PTZ stop error: ${data.error}`, 'error');
+          }
+        });
+    }
+
+    function ptzStatus() {
+      addLog('PTZ getting status...', 'info');
+      fetch('/api/ptz/status')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            addLog('PTZ status received', 'success');
+            console.log('PTZ Status:', data.raw);
+          } else {
+            addLog(`PTZ status error: ${data.error}`, 'error');
+          }
+        })
+        .catch(err => {
+          addLog(`PTZ status failed: ${err.message}`, 'error');
+        });
+    }
+
+    // ---- Update existing functions to support camera parameter ----
+    function startStream() {
+      const quality = document.getElementById("settingQuality").value;
+      const fps = document.getElementById("settingFps").value;
+      const width = document.getElementById("settingWidth").value;
+
+      let url = `/api/stream?camera=${currentCamera}&quality=${quality}&fps=${fps}`;
+      if (width) url += `&width=${width}`;
+
+      addLog(`Camera ${currentCamera} - Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
+
+      const img = document.getElementById("streamImg");
+      const placeholder = document.getElementById("streamPlaceholder");
+      const overlay = document.getElementById("streamOverlay");
+
+      img.src = url;
+      img.style.display = "block";
+      placeholder.style.display = "none";
+      overlay.style.display = "flex";
+
+      document.getElementById("qualityTag").textContent = quality.toUpperCase();
+      document.getElementById("fpsTag").textContent = fps + " FPS";
+
+      document.getElementById("btnStartStream").style.display = "none";
+      document.getElementById("btnStopStream").style.display = "flex";
+
+      isStreaming = true;
+      streamStartTime = Date.now();
+      updateStreamInfo();
+
+      // Better error handling - check if camera is accessible
+      img.onerror = () => {
+        addLog(`Camera ${currentCamera} - Stream nu răspunde (timeout sau cameră offline)`, "error");
+        
+        // Don't auto-reconnect for Camera 2 (PTZ likely offline)
+        if (currentCamera === 2) {
+          addLog("Camera 2 (PTZ) nu este accesibilă - verifică conexiunea", "warn");
+          stopStream();
+          return;
+        }
+        
+        // Auto-reconnect only for Camera 1
+        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
+        setTimeout(() => {
+          if (isStreaming && currentCamera === 1) {
+            addLog("Reconectare automată...", "info");
+            img.src = url + "&t=" + Date.now();
+          }
+        }, 3000);
+      };
+
+      // Load timeout - if no frame loads in 10 seconds, stop
+      const loadTimeout = setTimeout(() => {
+        if (isStreaming && !img.complete) {
+          addLog(`Camera ${currentCamera} - Timeout la încărcare`, "error");
+          stopStream();
+        }
+      }, 10000);
+
+      img.onload = () => {
+        clearTimeout(loadTimeout);
+        addLog("Stream pornit cu succes", "success");
+      };
+    }
+
+    async function takeSnapshot() {
+      addLog(`Camera ${currentCamera} - Capturez snapshot...`, "info");
+      try {
+        const quality = document.getElementById("settingQuality").value;
+        const url = `/api/snapshot?camera=${currentCamera}&quality=${quality}`;
+        
+        window.open(url, "_blank");
+        addLog("Snapshot capturat - deschis în tab nou", "success");
+      } catch (err) {
+        addLog(`Eroare snapshot: ${err.message}`, "error");
+      }
+    }
+
+    async function saveSnapshot() {
+      addLog(`Camera ${currentCamera} - Salvez snapshot pe disc...`, "info");
+      try {
+        const quality = document.getElementById("settingQuality").value;
+        const res = await fetch(`/api/snapshot/save?camera=${currentCamera}&quality=${quality}`);
+        const data = await res.json();
+
+        if (data.success) {
+          addLog(`Salvat: ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`, "success");
+          loadSnapshots();
+        } else {
+          addLog(`Eroare: ${data.error}`, "error");
+        }
+      } catch (err) {
+        addLog(`Eroare salvare: ${err.message}`, "error");
+      }
+    }
+
+    async function startRecording() {
+      const quality = document.getElementById("settingQuality").value;
+      addLog(`Camera ${currentCamera} - Pornesc înregistrarea (${quality})...`, "info");
+      try {
+        const res = await fetch(`/api/record/start?camera=${currentCamera}&quality=${quality}`, { method: "POST" });
+        const data = await res.json();
+        if (!res.ok) {
+          addLog(`Eroare: ${data.error}`, "error"); return;
+        }
+        isRecording = true;
+        recStartTime = Date.now();
+        document.getElementById("btnStartRec").style.display = "none";
+        document.getElementById("btnStopRec").style.display = "flex";
+        document.getElementById("recBar").classList.add("active");
+        document.getElementById("recFilename").textContent = data.filename;
+        const overlay = document.getElementById("streamOverlay");
+        if (!document.getElementById("recTag")) {
+          const tag = document.createElement("span");
+          tag.className = "stream-tag rec";
+          tag.id = "recTag";
+          tag.textContent = "⏺ REC";
+          overlay.appendChild(tag);
+        }
+        recTimerInterval = setInterval(updateRecTimer, 1000);
+        addLog(`Înregistrare pornită: ${data.filename}`, "success");
+      } catch (err) {
+        addLog(`Eroare pornire înregistrare: ${err.message}`, "error");
+      }
+    }
+
+    // ---- Init ----
+    window.addEventListener("load", () => {
+      addLog("Aplicația pornită", "success");
+      loadInfo();
+      loadSnapshots();
+      loadRecordings();
+      checkStatus();
+      initPTZ();
+    });
+  </script>
+</body>
+</html>

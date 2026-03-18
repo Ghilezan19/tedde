@@ -1,0 +1,14 @@
+{
+  "name": "hilook-camera-integration",
+  "version": "1.0.0",
+  "description": "HiLook/Hikvision RTSP camera integration - live stream, snapshot, auto-reconnect",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
