@@ -1,5 +1,24 @@
 node_modules/
+
+# Env - valorile reale (secrete, nu se urcă pe git)
 .env
+# .env_example SE urcă pe git (nu conține parole reale)
+!.env_example
+
 snapshots/*.jpg
 snapshots/*.jpeg
 snapshots/*.png
+recordings/*.mp4
+events/
+
+__pycache__/
+py_backend/__pycache__/
+py_backend/camera/__pycache__/
+py_backend/routes/__pycache__/
+py_backend/services/__pycache__/
+
+.DS_Store
+
+# Pulled clips from camera.sh (adb pull)
+out_camera/*
+!out_camera/.gitkeep

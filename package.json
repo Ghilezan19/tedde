@@ -1,14 +1,16 @@
 {
   "name": "hilook-camera-integration",
   "version": "1.0.0",
-  "description": "HiLook/Hikvision RTSP camera integration - live stream, snapshot, auto-reconnect",
-  "main": "server.js",
+  "description": "Unified Python-only HiLook/Hikvision camera service",
+  "main": "py_backend/main.py",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "cd py_backend && python3 main.py",
+    "dev": "cd py_backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
   },
   "dependencies": {
+    "axios": "^1.13.6",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "ws": "^8.19.0"
   }
 }

@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HiLook Camera - Live View</title>
+  <title>HiLook Camera Control</title>
   <style>
-    /* ---- Reset & Base ---- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: #0f172a;
@@ -19,61 +18,56 @@
     .header {
       background: #1e293b;
       border-bottom: 1px solid #334155;
-      padding: 16px 24px;
+      padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-
     .header h1 {
-      font-size: 20px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
       color: #f8fafc;
       display: flex;
       align-items: center;
       gap: 10px;
     }
-
-    .header h1 .dot {
-      width: 10px;
-      height: 10px;
+    .dot {
+      width: 10px; height: 10px;
       border-radius: 50%;
       background: #ef4444;
       animation: pulse 2s infinite;
+      flex-shrink: 0;
     }
+    .dot.online { background: #22c55e; }
 
-    .header h1 .dot.online { background: #22c55e; }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
     .status-badge {
       padding: 4px 12px;
       border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
+      font-size: 11px;
+      font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-
-    .status-badge.online { background: #166534; color: #86efac; }
-    .status-badge.offline { background: #7f1d1d; color: #fca5a5; }
+    .status-badge.online     { background: #166534; color: #86efac; }
+    .status-badge.offline    { background: #7f1d1d; color: #fca5a5; }
     .status-badge.connecting { background: #713f12; color: #fde047; }
 
     /* ---- Layout ---- */
     .container {
-      max-width: 1400px;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 20px 24px;
       display: grid;
-      grid-template-columns: 1fr 360px;
-      gap: 24px;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      align-items: start;
     }
-
-    @media (max-width: 900px) {
-      .container { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 960px) { .container { grid-template-columns: 1fr; } }
 
     /* ---- Card ---- */
     .card {
@@ -82,24 +76,21 @@
       border-radius: 12px;
       overflow: hidden;
     }
-
     .card-header {
-      padding: 14px 20px;
+      padding: 12px 18px;
       border-bottom: 1px solid #334155;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
-
     .card-header h2 {
-      font-size: 15px;
-      font-weight: 600;
-      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
     }
-
-    .card-body { padding: 20px; }
+    .card-body { padding: 18px; }
 
     /* ---- Stream View ---- */
     .stream-container {
@@ -112,92 +103,108 @@
       align-items: center;
       justify-content: center;
     }
-
-    .stream-container img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .stream-placeholder {
-      text-align: center;
-      color: #64748b;
-    }
-
-    .stream-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+    .stream-container img { width: 100%; height: 100%; object-fit: contain; }
+    .stream-placeholder { text-align: center; color: #475569; }
+    .stream-placeholder .icon { font-size: 52px; margin-bottom: 12px; display: block; }
     .stream-placeholder p { font-size: 14px; }
-
     .stream-overlay {
       position: absolute;
-      top: 12px;
-      left: 12px;
-      display: flex;
-      gap: 8px;
+      top: 10px; left: 10px;
+      display: flex; gap: 6px;
     }
-
     .stream-tag {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0,0,0,.75);
       backdrop-filter: blur(4px);
-      padding: 4px 10px;
-      border-radius: 6px;
+      padding: 3px 9px;
+      border-radius: 5px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       color: #e2e8f0;
     }
-
     .stream-tag.live { color: #ef4444; }
-    .stream-tag.rec { color: #ef4444; animation: pulse 1s infinite; }
+    .stream-tag.rec  { color: #ef4444; animation: pulse 1s infinite; }
 
     /* ---- Recording Bar ---- */
     .rec-bar {
       display: none;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-top: 12px;
-      padding: 10px 14px;
-      background: rgba(220, 38, 38, 0.12);
-      border: 1px solid rgba(220, 38, 38, 0.35);
+      padding: 9px 14px;
+      background: rgba(220,38,38,.1);
+      border: 1px solid rgba(220,38,38,.3);
       border-radius: 8px;
     }
     .rec-bar.active { display: flex; }
-    .rec-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #ef4444; flex-shrink: 0;
-      animation: pulse 1s infinite;
-    }
-    .rec-label { font-size: 13px; font-weight: 600; color: #fca5a5; }
-    .rec-timer { font-size: 13px; font-family: 'Consolas', monospace; color: #e2e8f0; margin-left: auto; }
+    .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; flex-shrink: 0; animation: pulse 1s infinite; }
+    .rec-label    { font-size: 13px; font-weight: 700; color: #fca5a5; }
+    .rec-timer    { font-size: 13px; font-family: monospace; color: #e2e8f0; margin-left: auto; }
     .rec-filename { font-size: 11px; color: #94a3b8; }
 
-    /* ---- Recordings List ---- */
-    .rec-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
-    .rec-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 12px;
+    /* ---- Workflow ---- */
+    .workflow-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(37,99,235,.12);
+      border: 1px solid rgba(37,99,235,.35);
+      border-radius: 8px;
+    }
+    .workflow-bar.active {
+      background: rgba(217,119,6,.12);
+      border-color: rgba(217,119,6,.35);
+    }
+    .workflow-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #2563eb;
+      flex-shrink: 0;
+    }
+    .workflow-bar.active .workflow-dot {
+      background: #f59e0b;
+      animation: pulse 1s infinite;
+    }
+    .workflow-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .workflow-title { font-size: 13px; font-weight: 700; color: #dbeafe; }
+    .workflow-bar.active .workflow-title { color: #fde68a; }
+    .workflow-meta { font-size: 11px; color: #94a3b8; word-break: break-word; }
+    .workflow-timer {
+      margin-left: auto;
+      font-family: monospace;
+      font-size: 13px;
+      color: #e2e8f0;
+      white-space: nowrap;
+    }
+    .workflow-summary {
+      margin-top: 12px;
+      padding: 12px 14px;
       background: #0f172a;
       border: 1px solid #334155;
       border-radius: 8px;
       font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.6;
     }
-    .rec-item .rec-name { flex: 1; color: #e2e8f0; word-break: break-all; }
-    .rec-item .rec-size { color: #64748b; font-size: 11px; white-space: nowrap; }
-    .rec-item .rec-actions { display: flex; gap: 6px; flex-shrink: 0; }
-    .btn-icon {
-      padding: 5px 8px; border: 1px solid #334155; border-radius: 6px;
-      background: #1e293b; color: #e2e8f0; font-size: 13px; cursor: pointer;
-    }
-    .btn-icon:hover { background: #334155; }
-    .btn-icon.del:hover { background: #7f1d1d; border-color: #dc2626; }
-
-    /* ---- Camera Switcher ---- */
-    .camera-switcher {
+    .workflow-summary.empty { color: #64748b; }
+    .summary-links {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
+      flex-wrap: wrap;
+      margin-top: 8px;
     }
+
+    /* ---- Camera Switcher ---- */
+    .camera-switcher { display: flex; gap: 8px; margin-bottom: 16px; }
     .camera-btn {
-      flex: 1;
-      padding: 12px;
+      flex: 1; padding: 10px;
       border: 2px solid #334155;
       border-radius: 8px;
       background: #1e293b;
@@ -205,101 +212,180 @@
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all .2s;
       text-align: center;
     }
-    .camera-btn.active {
-      border-color: #2563eb;
-      background: #2563eb;
-      color: #fff;
+    .camera-btn.active { border-color: #2563eb; background: #2563eb; color: #fff; }
+    .camera-btn:hover:not(.active) { border-color: #475569; background: #334155; }
+    .camera-btn .cam-number { font-size: 18px; display: block; margin-bottom: 2px; }
+    .camera-btn .cam-type   { font-size: 11px; opacity: .8; }
+
+    /* ---- Controls / Buttons ---- */
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .btn {
+      padding: 9px 16px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
     }
-    .camera-btn:hover:not(.active) {
-      border-color: #475569;
-      background: #334155;
+    .btn:hover  { background: #334155; border-color: #475569; }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled, .btn-icon:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none;
     }
-    .camera-btn .cam-number {
-      font-size: 20px;
-      display: block;
-      margin-bottom: 4px;
+    .btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-danger  { background: #dc2626; border-color: #dc2626; color: #fff; }
+    .btn-danger:hover  { background: #b91c1c; }
+    .btn-success { background: #16a34a; border-color: #16a34a; color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: #d97706; border-color: #d97706; color: #fff; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-sm { padding: 5px 11px; font-size: 12px; }
+    .btn-icon { padding: 5px 8px; border: 1px solid #334155; border-radius: 6px; background: #1e293b; color: #e2e8f0; font-size: 13px; cursor: pointer; }
+    .btn-icon:hover { background: #334155; }
+    .btn-icon.del:hover { background: #7f1d1d; border-color: #dc2626; }
+
+    /* ---- Tabs ---- */
+    .tabs-nav {
+      display: flex;
+      gap: 2px;
+      background: #0f172a;
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 18px;
     }
-    .camera-btn .cam-type {
+    .tab-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: #64748b;
       font-size: 11px;
-      opacity: 0.8;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .tab-btn.active { background: #1e293b; color: #f1f5f9; }
+    .tab-btn:hover:not(.active) { color: #94a3b8; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ---- Setting Group ---- */
+    .setting-group { margin-bottom: 14px; }
+    .setting-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .setting-group select,
+    .setting-group input[type=text],
+    .setting-group input[type=number] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 14px;
+    }
+    .setting-group select:focus,
+    .setting-group input:focus { outline: none; border-color: #2563eb; }
+
+    /* ---- Slider ---- */
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    .slider-row input[type=range] {
+      flex: 1;
+      accent-color: #2563eb;
+      height: 4px;
+    }
+    .slider-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      min-width: 28px;
+      text-align: right;
     }
 
     /* ---- PTZ Joystick ---- */
-    .ptz-container {
-      display: none;
-      margin-top: 20px;
-    }
-    .ptz-container.active { display: block; }
     .ptz-joystick {
-      width: 200px;
-      height: 200px;
+      width: 196px;
+      height: 196px;
       margin: 0 auto 16px;
       position: relative;
       background: #0f172a;
       border: 2px solid #334155;
       border-radius: 50%;
-      cursor: pointer;
     }
     .ptz-center {
       position: absolute;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 40px;
-      height: 40px;
+      width: 38px; height: 38px;
       background: #334155;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 16px;
       color: #94a3b8;
+      cursor: pointer;
+      user-select: none;
     }
     .ptz-direction {
       position: absolute;
-      width: 50px;
-      height: 50px;
-      background: rgba(59, 130, 246, 0.2);
+      width: 48px; height: 48px;
+      background: rgba(59,130,246,.15);
       border: 1px solid #3b82f6;
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 18px;
       color: #3b82f6;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all .12s;
+      user-select: none;
     }
-    .ptz-direction:hover {
-      background: rgba(59, 130, 246, 0.3);
-      transform: scale(1.05);
-    }
-    .ptz-direction.up { top: 10px; left: 75px; }
-    .ptz-direction.down { bottom: 10px; left: 75px; }
-    .ptz-direction.left { left: 10px; top: 75px; }
-    .ptz-direction.right { right: 10px; top: 75px; }
-    .ptz-direction.up-left { top: 30px; left: 30px; }
-    .ptz-direction.up-right { top: 30px; right: 30px; }
-    .ptz-direction.down-left { bottom: 30px; left: 30px; }
-    .ptz-direction.down-right { bottom: 30px; right: 30px; }
-    .ptz-controls {
+    .ptz-direction:hover, .ptz-direction.pressing { background: rgba(59,130,246,.35); }
+    .ptz-direction.up         { top: 10px;    left: 74px; }
+    .ptz-direction.down       { bottom: 10px; left: 74px; }
+    .ptz-direction.left       { left: 10px;   top: 74px; }
+    .ptz-direction.right      { right: 10px;  top: 74px; }
+
+    .ptz-zoom-row {
       display: flex;
-      flex-direction: column;
-      gap: 12px;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
     }
+    .ptz-zoom-row .btn { flex: 1; justify-content: center; }
+
     .ptz-row {
       display: flex;
       gap: 8px;
       align-items: center;
+      margin-bottom: 8px;
     }
-    .ptz-row label {
-      font-size: 12px;
-      color: #94a3b8;
-      min-width: 60px;
-    }
+    .ptz-row label { font-size: 12px; color: #94a3b8; min-width: 54px; white-space: nowrap; }
     .ptz-row input, .ptz-row select {
       flex: 1;
       padding: 6px 10px;
@@ -309,1185 +395,1494 @@
       color: #e2e8f0;
       font-size: 13px;
     }
-    .ptz-row .btn {
-      padding: 6px 12px;
-      font-size: 12px;
+
+    /* ---- Presets list ---- */
+    .presets-list {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .preset-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .preset-item .preset-id {
+      width: 24px; height: 24px;
+      background: #2563eb;
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .preset-item .preset-name { flex: 1; color: #e2e8f0; }
+    .preset-empty { text-align: center; color: #475569; font-size: 13px; padding: 16px; }
+
+    /* ---- Audio Panel ---- */
+    .audio-panel { display: flex; flex-direction: column; gap: 14px; }
+    .audio-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .audio-status .a-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #334155;
+      flex-shrink: 0;
+    }
+    .audio-status .a-dot.active { background: #22c55e; animation: pulse 1.5s infinite; }
+    .audio-btn-row { display: flex; gap: 8px; }
+    .audio-btn-row .btn { flex: 1; justify-content: center; }
+    .mic-level {
+      height: 6px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mic-level-bar {
+      height: 100%;
+      background: #22c55e;
+      width: 0%;
+      transition: width .1s;
+      border-radius: 3px;
     }
 
-    /* ---- Controls ---- */
-    .controls {
+    /* ---- Info Grid ---- */
+    .info-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; }
+    .info-grid dt { color: #64748b; font-weight: 500; white-space: nowrap; }
+    .info-grid dd { color: #e2e8f0; word-break: break-all; }
+
+    /* ---- Recordings List ---- */
+    .rec-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+    .rec-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .rec-item .rec-name  { flex: 1; color: #e2e8f0; word-break: break-all; min-width: 0; }
+    .rec-item .rec-size  { color: #64748b; font-size: 11px; white-space: nowrap; }
+    .rec-item .rec-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* ---- Events ---- */
+    .events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .event-item {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      gap: 10px;
+      padding: 10px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+    }
+    .event-thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #020617;
+      border: 1px solid #1e293b;
+    }
+    .event-thumb.empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+      font-size: 12px;
+    }
+    .event-body { min-width: 0; }
+    .event-head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .event-plate {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .event-time, .event-folder {
+      font-size: 11px;
+      color: #94a3b8;
+      word-break: break-all;
+    }
+    .event-links {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 16px;
+      margin-top: 8px;
     }
-
-    .btn {
-      padding: 10px 18px;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      background: #1e293b;
-      color: #e2e8f0;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .btn:hover { background: #334155; border-color: #475569; }
-    .btn:active { transform: scale(0.97); }
-
-    .btn-primary {
-      background: #2563eb;
-      border-color: #2563eb;
-      color: #fff;
-    }
-
-    .btn-primary:hover { background: #1d4ed8; }
-
-    .btn-danger {
-      background: #dc2626;
-      border-color: #dc2626;
-      color: #fff;
-    }
-
-    .btn-danger:hover { background: #b91c1c; }
-
-    .btn-success {
-      background: #16a34a;
-      border-color: #16a34a;
-      color: #fff;
-    }
-
-    .btn-success:hover { background: #15803d; }
-
-    /* ---- Settings ---- */
-    .setting-group {
-      margin-bottom: 16px;
-    }
-
-    .setting-group label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
-
-    .setting-group select,
-    .setting-group input {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-size: 14px;
-    }
-
-    .setting-group select:focus,
-    .setting-group input:focus {
-      outline: none;
-      border-color: #2563eb;
-    }
-
-    /* ---- Snapshot Gallery ---- */
-    .gallery {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .gallery-item {
-      position: relative;
-      border-radius: 6px;
-      overflow: hidden;
-      cursor: pointer;
-      border: 1px solid #334155;
-    }
-
-    .gallery-item img {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      display: block;
-    }
-
-    .gallery-item:hover { border-color: #2563eb; }
-
-    .gallery-item .time {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 4px 6px;
-      background: rgba(0, 0, 0, 0.8);
+    .pill {
+      padding: 3px 8px;
+      border-radius: 999px;
       font-size: 10px;
-      color: #94a3b8;
+      font-weight: 700;
+      letter-spacing: .4px;
+      text-transform: uppercase;
+      background: #1e293b;
+      color: #93c5fd;
     }
+
+    /* ---- Gallery ---- */
+    .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 240px; overflow-y: auto; }
+    .gallery-item { position: relative; border-radius: 6px; overflow: hidden; cursor: pointer; border: 1px solid #334155; }
+    .gallery-item img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .gallery-item:hover { border-color: #2563eb; }
+    .gallery-item .time { position: absolute; bottom: 0; left: 0; right: 0; padding: 3px 6px; background: rgba(0,0,0,.8); font-size: 10px; color: #94a3b8; }
 
     /* ---- Log ---- */
     .log {
       background: #0f172a;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 12px;
-      font-family: 'Consolas', 'Monaco', monospace;
+      padding: 10px 12px;
+      font-family: 'Consolas', monospace;
       font-size: 12px;
       color: #94a3b8;
-      max-height: 200px;
+      max-height: 180px;
       overflow-y: auto;
-      line-height: 1.6;
+      line-height: 1.7;
     }
-
-    .log .info { color: #38bdf8; }
+    .log .info    { color: #38bdf8; }
     .log .success { color: #4ade80; }
-    .log .error { color: #f87171; }
-    .log .warn { color: #fbbf24; }
+    .log .error   { color: #f87171; }
+    .log .warn    { color: #fbbf24; }
 
-    /* ---- Info Grid ---- */
-    .info-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 6px 12px;
-      font-size: 13px;
-    }
-
-    .info-grid dt { color: #64748b; font-weight: 500; }
-    .info-grid dd { color: #e2e8f0; word-break: break-all; }
-
-    /* ---- Snapshot Modal ---- */
+    /* ---- Modal ---- */
     .modal-overlay {
       display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.85);
       z-index: 100;
       align-items: center;
       justify-content: center;
     }
-
     .modal-overlay.active { display: flex; }
-
-    .modal-content {
-      max-width: 90vw;
-      max-height: 90vh;
-    }
-
-    .modal-content img {
-      max-width: 100%;
-      max-height: 85vh;
-      border-radius: 8px;
-    }
-
+    .modal-content { max-width: 90vw; max-height: 90vh; }
+    .modal-content img { max-width: 100%; max-height: 85vh; border-radius: 8px; }
     .modal-close {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: #fff;
-      font-size: 24px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      cursor: pointer;
-      z-index: 101;
+      position: fixed; top: 20px; right: 20px;
+      background: rgba(255,255,255,.1); border: none; color: #fff;
+      font-size: 24px; width: 40px; height: 40px;
+      border-radius: 50%; cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
     }
+    .modal-close:hover { background: rgba(255,255,255,.2); }
+
+    /* ---- Light Buttons ---- */
+    .light-btns { display: flex; gap: 8px; }
+    .light-btns .btn { flex: 1; justify-content: center; }
+    .btn.active { ring: 2px solid white; }
+
+    /* ---- Section label ---- */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 10px;
+      margin-top: 4px;
+    }
+    .divider { border: none; border-top: 1px solid #334155; margin: 16px 0; }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <div class="header">
-    <h1>
-      <div class="dot" id="statusDot"></div>
-      HiLook Camera
-    </h1>
-    <span class="status-badge connecting" id="statusBadge">Se conectează...</span>
-  </div>
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <h1>
+    <span class="dot" id="statusDot"></span>
+    HiLook Camera Control
+  </h1>
+  <span class="status-badge connecting" id="statusBadge">Se conectează...</span>
+</header>
 
-  <!-- Main Content -->
-  <div class="container">
-    <!-- Left Column: Stream + Controls -->
-    <div>
-      <!-- Live Stream -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Live View</h2>
-          <span id="streamInfo" style="font-size: 12px; color: #64748b;"></span>
+<div class="container">
+
+  <!-- ===== LEFT PANEL ===== -->
+  <div class="left-col">
+
+    <!-- Camera Switcher + Live View -->
+    <div class="card">
+      <div class="card-body">
+        <div class="camera-switcher">
+          <button class="camera-btn active" id="camBtn1" onclick="switchCamera(1)">
+            <span class="cam-number">📷 1</span>
+            <span class="cam-type">Fix (HiLook)</span>
+          </button>
+          <button class="camera-btn" id="camBtn2" onclick="switchCamera(2)">
+            <span class="cam-number">🔄 2</span>
+            <span class="cam-type">PTZ (HiLook)</span>
+          </button>
         </div>
-        <div class="card-body" style="padding: 12px;">
-          <div class="stream-container" id="streamContainer">
-            <div class="stream-placeholder" id="streamPlaceholder">
-              <div class="icon">📷</div>
-              <p>Apasă "Start Stream" pentru a porni</p>
-            </div>
-            <img id="streamImg" style="display: none;" alt="Live Stream">
-            <div class="stream-overlay" id="streamOverlay" style="display: none;">
-              <span class="stream-tag live">● LIVE</span>
-              <span class="stream-tag" id="qualityTag">SUB</span>
-              <span class="stream-tag" id="fpsTag">5 FPS</span>
-            </div>
-          </div>
 
-          <!-- Camera Switcher -->
-          <div class="camera-switcher">
-            <button class="camera-btn active" id="cam1Btn" onclick="switchCamera(1)">
-              <span class="cam-number">1</span>
-              <span class="cam-type">Fix</span>
-            </button>
-            <button class="camera-btn" id="cam2Btn" onclick="switchCamera(2)">
-              <span class="cam-number">2</span>
-              <span class="cam-type">PTZ</span>
-            </button>
-            <button class="btn" onclick="diagnoseCamera2()" style="padding: 8px 12px; font-size: 12px;" title="Diagnostic Camera 2">🔍</button>
+        <div class="stream-container" id="streamContainer">
+          <div class="stream-placeholder" id="streamPlaceholder">
+            <span class="icon">📹</span>
+            <p>Apasă <strong>Start Stream</strong> pentru a vizualiza</p>
           </div>
-
-          <!-- Controls -->
-          <div class="controls">
-            <button class="btn btn-primary" id="btnStartStream" onclick="startStream()">▶ Start Stream</button>
-            <button class="btn btn-danger" id="btnStopStream" onclick="stopStream()" style="display: none;">⏹ Stop Stream</button>
-            <button class="btn btn-success" onclick="takeSnapshot()">📸 Snapshot</button>
-            <button class="btn" onclick="saveSnapshot()">💾 Salvează Snapshot</button>
-            <button class="btn" id="btnStartRec" onclick="startRecording()" style="background:#7c3aed;border-color:#7c3aed;color:#fff;">⏺ Start Rec</button>
-            <button class="btn btn-danger" id="btnStopRec" onclick="stopRecording()" style="display:none;">⏹ Stop Rec</button>
-            <button class="btn" onclick="checkStatus()">🔍 Verifică Status</button>
-          </div>
-
-          <!-- Recording active bar -->
-          <div class="rec-bar" id="recBar">
-            <div class="rec-dot"></div>
-            <span class="rec-label">REC</span>
-            <span class="rec-filename" id="recFilename"></span>
-            <span class="rec-timer" id="recTimer">00:00:00</span>
+          <img id="streamImg" style="display:none" alt="Camera stream">
+          <div class="stream-overlay" id="streamOverlay" style="display:none">
+            <span class="stream-tag live">● LIVE</span>
+            <span class="stream-tag" id="qualityTag">SUB</span>
+            <span class="stream-tag" id="fpsTag">5fps</span>
+            <span class="stream-tag rec" id="recTag" style="display:none">⏺ REC</span>
           </div>
         </div>
-      </div>
 
-      <!-- Log -->
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-header">
-          <h2>Log</h2>
-          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="clearLog()">Șterge</button>
+        <!-- Recording bar -->
+        <div class="rec-bar" id="recBar">
+          <div class="rec-dot"></div>
+          <span class="rec-label">REC</span>
+          <span class="rec-filename" id="recFilename"></span>
+          <span class="rec-timer" id="recTimer">00:00:00</span>
         </div>
-        <div class="card-body">
-          <div class="log" id="logContainer"></div>
+
+        <div class="workflow-bar" id="workflowBar">
+          <div class="workflow-dot"></div>
+          <div class="workflow-main">
+            <span class="workflow-title" id="workflowTitle">Workflow inactiv</span>
+            <span class="workflow-meta" id="workflowMeta">Așteaptă trigger din browser sau ESP</span>
+          </div>
+          <span class="workflow-timer" id="workflowTimer">00:00</span>
+        </div>
+
+        <div class="workflow-summary empty" id="workflowSummary">
+          Nu există încă niciun workflow finalizat.
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="controls">
+          <button class="btn btn-primary" id="streamBtn" onclick="toggleStream()">▶ Start Stream</button>
+          <button class="btn" id="snapBtn" onclick="takeSnapshot()">📸 Snapshot</button>
+          <button class="btn" id="saveSnapBtn" onclick="saveSnapshot()">💾 Salvează</button>
+          <button class="btn btn-success" id="recBtn" onclick="toggleRecording()">⏺ Start Rec</button>
+          <button class="btn btn-warning" id="workflowBtn" onclick="triggerWorkflow()">⚡ Start Workflow</button>
+          <button class="btn" onclick="checkStatus()">📡 Status</button>
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Settings + Snapshots + Info -->
-    <div>
-      <!-- Stream Settings -->
-      <div class="card">
-        <div class="card-header">
-          <h2>Setări Stream</h2>
+  </div>
+
+  <!-- ===== RIGHT PANEL ===== -->
+  <div class="right-col">
+    <div class="card">
+      <div class="card-body">
+
+        <!-- Tab Navigation -->
+        <div class="tabs-nav">
+          <button class="tab-btn active" onclick="showTab('stream')" id="tab-stream-btn">📡 Stream</button>
+          <button class="tab-btn" onclick="showTab('alpr')"   id="tab-alpr-btn">🚗 ALPR</button>
+          <button class="tab-btn" onclick="showTab('ptz')"    id="tab-ptz-btn">🎮 PTZ</button>
+          <button class="tab-btn" onclick="showTab('audio')"  id="tab-audio-btn">🔊 Audio</button>
+          <button class="tab-btn" onclick="showTab('image')"  id="tab-image-btn">🌈 Imagine</button>
+          <button class="tab-btn" onclick="showTab('info')"   id="tab-info-btn">ℹ️ Info</button>
         </div>
-        <div class="card-body">
+
+        <!-- ===== TAB: STREAM ===== -->
+        <div class="tab-panel active" id="tab-stream">
+
           <div class="setting-group">
-            <label>Calitate</label>
-            <select id="settingQuality">
-              <option value="sub">Sub Stream (mai rapid, mai puțin trafic)</option>
-              <option value="main">Main Stream (rezoluție maximă)</option>
+            <label>Calitate stream</label>
+            <select id="qualitySelect" onchange="updateStreamTags()">
+              <option value="sub">Sub Stream (recomandat)</option>
+              <option value="main">Main Stream (4MP)</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <label>Frame rate</label>
+            <select id="fpsSelect" onchange="updateStreamTags()">
+              <option value="2">2 fps</option>
+              <option value="5" selected>5 fps</option>
+              <option value="10">10 fps</option>
+              <option value="15">15 fps</option>
+              <option value="25">25 fps</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <label>Lățime (opțional, px)</label>
+            <input type="number" id="widthInput" placeholder="ex: 640" min="160" max="1920">
+          </div>
+
+          <hr class="divider">
+
+          <p class="section-label">Galerie Snapshots</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <span id="galleryCount" style="font-size:12px; color:#64748b">0 imagini</span>
+            <button class="btn btn-sm" onclick="loadGallery()">🔄 Refresh</button>
+          </div>
+          <div class="gallery" id="gallery">
+            <p style="grid-column:1/-1; text-align:center; color:#475569; font-size:13px; padding:16px">Nicio imagine salvată</p>
+          </div>
+
+        </div>
+
+        <!-- ===== TAB: ALPR ===== -->
+        <div class="tab-panel" id="tab-alpr">
+          <p class="section-label">Test ALPR</p>
+          <p style="font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.55">
+            Capturează un cadru de la cameră și rulează fast-alpr pe <code>alpr_test_last.jpg</code>.
+            Pentru inferență, setează <code>ALPR_ENABLED=1</code> în <code>.env</code>.
+          </p>
+          <div class="setting-group">
+            <label>Cameră</label>
+            <select id="alprCameraSelect">
+              <option value="1">Camera 1 (fixă)</option>
+              <option value="2">Camera 2 (PTZ)</option>
             </select>
           </div>
           <div class="setting-group">
-            <label>FPS (cadre pe secundă)</label>
-            <select id="settingFps">
-              <option value="2">2 FPS (economie bandă)</option>
-              <option value="5" selected>5 FPS (recomandat)</option>
-              <option value="10">10 FPS</option>
-              <option value="15">15 FPS</option>
-              <option value="25">25 FPS (fluid)</option>
+            <label>Calitate snapshot</label>
+            <select id="alprQualitySelect">
+              <option value="main">Main (mai mult detaliu)</option>
+              <option value="sub">Sub (mai rapid)</option>
             </select>
           </div>
+          <button class="btn btn-primary" type="button" onclick="runAlprTest()" id="alprRunBtn" style="width:100%; justify-content:center; margin-bottom:10px">▶ Rulează ALPR</button>
+          <div id="alprStatusMsg" style="font-size:13px; min-height:1.2em; margin-bottom:8px"></div>
+          <div id="alprResults" style="font-size:13px; color:#e2e8f0; line-height:1.5"></div>
+          <img id="alprPreviewImg" src="" alt="Snapshot analizat" style="display:none; width:100%; max-height:280px; object-fit:contain; margin-top:12px; border-radius:8px; border:1px solid #334155; background:#0f172a">
+        </div>
+
+        <!-- ===== TAB: PTZ ===== -->
+        <div class="tab-panel" id="tab-ptz">
+
+          <div id="ptzUnavailable" style="display:none; text-align:center; color:#64748b; padding:20px; font-size:14px">
+            PTZ disponibil doar pentru Camera 2
+          </div>
+
+          <div id="ptzControls">
+            <!-- Error banner -->
+            <div id="ptzError" style="display:none; background:rgba(220,38,38,.15); border:1px solid #dc2626; border-radius:8px; padding:8px 12px; font-size:12px; color:#fca5a5; margin-bottom:10px; word-break:break-all;"></div>
+
+            <!-- Joystick -->
+            <div class="ptz-joystick">
+              <div class="ptz-direction up"         data-dir="up"         onmousedown="ptzStart('up')"         onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzStart('up')"         ontouchend="ptzStop()">↑</div>
+              <div class="ptz-direction down"       data-dir="down"       onmousedown="ptzStart('down')"       onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzStart('down')"       ontouchend="ptzStop()">↓</div>
+              <div class="ptz-direction left"       data-dir="left"       onmousedown="ptzStart('left')"       onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzStart('left')"       ontouchend="ptzStop()">←</div>
+              <div class="ptz-direction right"      data-dir="right"      onmousedown="ptzStart('right')"      onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzStart('right')"      ontouchend="ptzStop()">→</div>
+              <div class="ptz-center" onclick="ptzStop()">⏹</div>
+            </div>
+
+            <!-- Zoom + Focus row -->
+            <div class="ptz-zoom-row">
+              <button class="btn btn-sm" onmousedown="ptzZoomStart('out')" onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzZoomStart('out')" ontouchend="ptzStop()">🔍 −</button>
+              <button class="btn btn-sm" onmousedown="ptzZoomStart('in')"  onmouseup="ptzStop()" onmouseleave="ptzStop()" ontouchstart="ptzZoomStart('in')"  ontouchend="ptzStop()">🔍 +</button>
+              <button class="btn btn-sm" disabled title="Focus control not supported on this camera">Focus indisponibil</button>
+            </div>
+
+            <!-- Speed -->
+            <div class="ptz-row" style="margin-bottom:12px">
+              <label>Viteză</label>
+              <input type="range" id="ptzSpeed" min="1" max="7" value="5" oninput="document.getElementById('ptzSpeedVal').textContent=this.value" style="flex:1; accent-color:#2563eb">
+              <span id="ptzSpeedVal" style="font-size:13px; color:#94a3b8; min-width:16px">5</span>
+            </div>
+
+            <hr class="divider">
+
+            <!-- Presets management -->
+            <p class="section-label">Preseturi pozitii</p>
+
+            <div class="presets-list" id="presetsList">
+              <div class="preset-empty">Se încarcă...</div>
+            </div>
+
+            <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center">
+              <input type="text" id="presetNameInput" placeholder="Nume preset nou" style="flex:1; padding:6px 10px; border:1px solid #334155; border-radius:6px; background:#0f172a; color:#e2e8f0; font-size:13px">
+              <button class="btn btn-sm btn-success" onclick="savePreset()">💾 Salvează poziție</button>
+            </div>
+            <button class="btn btn-sm" onclick="loadPresets()" style="width:100%; justify-content:center">🔄 Reîncarcă preseturi</button>
+
+          </div>
+        </div>
+
+        <!-- ===== TAB: AUDIO ===== -->
+        <div class="tab-panel" id="tab-audio">
+          <div class="audio-panel">
+
+            <div class="audio-status">
+              <div class="a-dot" id="audioSessionDot"></div>
+              <span id="audioSessionLabel" style="flex:1; color:#94a3b8">Sesiune audio: inchisă</span>
+            </div>
+
+            <hr class="divider" style="margin:4px 0">
+            <p class="section-label">Microfon cameră → Difuzor browser</p>
+
+            <div class="audio-btn-row">
+              <button class="btn btn-success" id="listenBtn" onclick="toggleListen()">▶ Ascultă camera</button>
+            </div>
+            <audio id="audioPlayer" controls style="width:100%; margin-top:8px; display:none; border-radius:6px; height:36px; background:#0f172a; color:#e2e8f0" ></audio>
+
+            <hr class="divider">
+            <p class="section-label">Microfon browser → Difuzor cameră</p>
+
+            <div class="audio-btn-row">
+              <button class="btn" id="talkBtn" onclick="toggleTalk()">🎙 Vorbește</button>
+            </div>
+
+            <div style="margin-top:8px">
+              <div style="font-size:11px; color:#64748b; margin-bottom:4px">Nivel microfon</div>
+              <div class="mic-level"><div class="mic-level-bar" id="micBar"></div></div>
+            </div>
+
+            <div style="font-size:12px; color:#475569; margin-top:12px; line-height:1.6">
+              ℹ️ Sesiunea audio se deschide automat la pornirea funcției Vorbește. Camera trebuie să aibă microfon și difuzor activate.
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ===== TAB: IMAGE & LIGHT ===== -->
+        <div class="tab-panel" id="tab-image">
+
+          <p class="section-label">Iluminare</p>
+          <div class="light-btns" style="margin-bottom:12px">
+            <button class="btn btn-sm" id="lightIrBtn"    onclick="setLight('ir')">💡 IR</button>
+            <button class="btn btn-sm" id="lightWhiteBtn" onclick="setLight('white')">☀️ Alb</button>
+            <button class="btn btn-sm" id="lightOffBtn"   onclick="setLight('off')">🌙 Off</button>
+          </div>
+          <div class="setting-group" style="margin-bottom:16px">
+            <label>Luminozitate lumina (0-100)</label>
+            <div class="slider-row">
+              <input type="range" id="lightBrightSlider" min="0" max="100" value="50" oninput="document.getElementById('lightBrightVal').textContent=this.value">
+              <span class="slider-val" id="lightBrightVal">50</span>
+            </div>
+          </div>
+
+          <hr class="divider">
+          <p class="section-label">Imagine cameră (Camera 2)</p>
+
           <div class="setting-group">
-            <label>Lățime (px, gol = original)</label>
-            <input type="number" id="settingWidth" placeholder="ex: 640, 1280" min="320" max="1920">
-          </div>
-        </div>
-      </div>
-
-      <!-- PTZ Controls (Camera 2 only) -->
-      <div class="card ptz-container" id="ptzContainer" style="margin-top: 20px;">
-        <div class="card-header">
-          <h2>PTZ Control</h2>
-        </div>
-        <div class="card-body">
-          <div class="ptz-joystick" id="ptzJoystick">
-            <div class="ptz-center">⦿</div>
-            <div class="ptz-direction up" data-dir="up">↑</div>
-            <div class="ptz-direction down" data-dir="down">↓</div>
-            <div class="ptz-direction left" data-dir="left">←</div>
-            <div class="ptz-direction right" data-dir="right">→</div>
-            <div class="ptz-direction up-left" data-dir="up-left">↖</div>
-            <div class="ptz-direction up-right" data-dir="up-right">↗</div>
-            <div class="ptz-direction down-left" data-dir="down-left">↙</div>
-            <div class="ptz-direction down-right" data-dir="down-right">↘</div>
-          </div>
-          <div class="ptz-controls">
-            <div class="ptz-row">
-              <label>Speed</label>
-              <input type="range" id="ptzSpeed" min="1" max="7" value="5">
-              <span id="ptzSpeedValue">5</span>
-            </div>
-            <div class="ptz-row">
-              <label>Goto Preset</label>
-              <input type="number" id="ptzPreset" min="1" max="255" placeholder="1-255">
-              <button class="btn btn-primary" onclick="ptzGotoPreset()">Go</button>
-            </div>
-            <div class="ptz-row">
-              <label>Position</label>
-              <input type="number" id="ptzX" min="0" max="360" placeholder="X">
-              <input type="number" id="ptzY" min="0" max="180" placeholder="Y">
-              <input type="number" id="ptzZoom" min="1" max="10" placeholder="Zoom">
-              <button class="btn btn-primary" onclick="ptzGotoPosition()">Go</button>
-            </div>
-            <div class="ptz-row">
-              <button class="btn" onclick="ptzStop()">⏹ Stop</button>
-              <button class="btn" onclick="ptzStatus()">📍 Status</button>
+            <label>Luminozitate</label>
+            <div class="slider-row">
+              <input type="range" id="imgBrightness" min="0" max="100" value="50" oninput="document.getElementById('imgBrightnessVal').textContent=this.value">
+              <span class="slider-val" id="imgBrightnessVal">50</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Înregistrări -->
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-header">
-          <h2>Înregistrări</h2>
-          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="loadRecordings()">🔄 Refresh</button>
-        </div>
-        <div class="card-body">
-          <div class="rec-list" id="recList">
-            <p style="color: #64748b; font-size: 13px;">Nicio înregistrare salvată.</p>
+          <div class="setting-group">
+            <label>Contrast</label>
+            <div class="slider-row">
+              <input type="range" id="imgContrast" min="0" max="100" value="50" oninput="document.getElementById('imgContrastVal').textContent=this.value">
+              <span class="slider-val" id="imgContrastVal">50</span>
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Snapshots -->
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-header">
-          <h2>Snapshots Salvate</h2>
-          <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="loadSnapshots()">🔄 Refresh</button>
-        </div>
-        <div class="card-body">
-          <div class="gallery" id="galleryContainer">
-            <p style="color: #64748b; font-size: 13px; grid-column: 1 / -1;">Niciun snapshot salvat încă.</p>
+          <div class="setting-group">
+            <label>Saturatie</label>
+            <div class="slider-row">
+              <input type="range" id="imgSaturation" min="0" max="100" value="50" oninput="document.getElementById('imgSaturationVal').textContent=this.value">
+              <span class="slider-val" id="imgSaturationVal">50</span>
+            </div>
           </div>
-        </div>
-      </div>
+          <div class="setting-group">
+            <label>Claritate (Sharpness)</label>
+            <div class="slider-row">
+              <input type="range" id="imgSharpness" min="0" max="100" value="50" oninput="document.getElementById('imgSharpnessVal').textContent=this.value">
+              <span class="slider-val" id="imgSharpnessVal">50</span>
+            </div>
+          </div>
+          <div class="setting-group">
+            <label>Mod zi/noapte</label>
+            <select id="imgIRCut">
+              <option value="AUTO">Auto</option>
+              <option value="DAY">Zi (color)</option>
+              <option value="NIGHT">Noapte (alb/negru)</option>
+            </select>
+          </div>
 
-      <!-- Camera Info -->
-      <div class="card" style="margin-top: 20px;">
-        <div class="card-header">
-          <h2>Informații Cameră</h2>
+          <div style="display:flex; gap:8px; margin-top:4px">
+            <button class="btn btn-sm btn-primary" onclick="applyImageSettings()" style="flex:1; justify-content:center">✅ Aplică setările</button>
+            <button class="btn btn-sm" onclick="loadImageSettings()" style="justify-content:center">🔄</button>
+          </div>
+
         </div>
-        <div class="card-body">
-          <dl class="info-grid" id="cameraInfo">
-            <dt>IP</dt><dd>Se încarcă...</dd>
+
+        <!-- ===== TAB: INFO ===== -->
+        <div class="tab-panel" id="tab-info">
+
+          <p class="section-label">Info dispozitiv Camera 2</p>
+          <dl class="info-grid" id="deviceInfoGrid">
+            <dt>Producător</dt><dd id="di-manufacturer">—</dd>
+            <dt>Model</dt><dd id="di-model">—</dd>
+            <dt>Serie</dt><dd id="di-serial">—</dd>
+            <dt>Firmware</dt><dd id="di-firmware">—</dd>
+            <dt>Hardware ID</dt><dd id="di-hwid">—</dd>
+            <dt>IP</dt><dd id="di-ip">—</dd>
           </dl>
+
+          <hr class="divider">
+          <p class="section-label">Evenimente workflow</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <span id="eventsCount" style="font-size:12px; color:#64748b">0 evenimente</span>
+            <button class="btn btn-sm" onclick="loadEvents()">🔄</button>
+          </div>
+          <div class="events-list" id="eventsList">
+            <p style="text-align:center; color:#475569; font-size:13px; padding:12px">Niciun eveniment salvat</p>
+          </div>
+
+          <hr class="divider">
+          <p class="section-label">Înregistrări</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <span id="recCount" style="font-size:12px; color:#64748b">0 fișiere</span>
+            <button class="btn btn-sm" onclick="loadRecordings()">🔄</button>
+          </div>
+          <div class="rec-list" id="recList">
+            <p style="text-align:center; color:#475569; font-size:13px; padding:12px">Nicio înregistrare</p>
+          </div>
+
+          <hr class="divider">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <p class="section-label" style="margin:0">Log</p>
+            <button class="btn btn-sm" onclick="clearLog()">🗑 Șterge</button>
+          </div>
+          <div class="log" id="log"></div>
+
+          <hr class="divider">
+          <button class="btn btn-sm" onclick="runDiagnostic()" style="width:100%; justify-content:center">🔍 Diagnostic Camera 2</button>
+
         </div>
+
       </div>
     </div>
   </div>
 
-  <!-- Snapshot Modal -->
-  <div class="modal-overlay" id="snapshotModal" onclick="closeModal()">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    <div class="modal-content">
-      <img id="modalImg" src="" alt="Snapshot">
-    </div>
+</div>
+
+<!-- Snapshot Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal-content">
+    <button class="modal-close" onclick="document.getElementById('modal').classList.remove('active')">✕</button>
+    <img id="modalImg" src="" alt="Snapshot">
   </div>
+</div>
 
-  <script>
-    // ---- State ----
-    let isStreaming = false;
-    let streamStartTime = null;
-    let isRecording = false;
-    let recStartTime = null;
-    let recTimerInterval = null;
-    let currentCamera = 1;
-    let ptzMoveInterval = null;
+<!-- ===================================================
+     JAVASCRIPT
+==================================================== -->
+<script>
+// ---- State ----
+let streaming     = false;
+let recording     = false;
+let recTimerInt   = null;
+let recStartTime  = null;
+let currentCamera = 1;
+let listenActive  = false;
+let talkActive    = false;
+let talkWs        = null;
+let micStream     = null;
+let micCtx        = null;
+let micAnalyser   = null;
+let micLevelInt   = null;
+let workflowActive = false;
+let workflowSignature = "";
 
-    // ---- Log ----
-    function addLog(message, type = "info") {
-      const log = document.getElementById("logContainer");
-      const time = new Date().toLocaleTimeString("ro-RO");
-      log.innerHTML += `<div class="${type}">[${time}] ${message}</div>`;
-      log.scrollTop = log.scrollHeight;
-    }
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
-    function clearLog() {
-      document.getElementById("logContainer").innerHTML = "";
-    }
+function formatDateTime(value) {
+  if (!value && value !== 0) return "—";
+  const date = typeof value === "number" ? new Date(value) : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("ro-RO");
+}
 
-    // ---- Stream Controls ----
-    function startStream() {
-      const quality = document.getElementById("settingQuality").value;
-      const fps = document.getElementById("settingFps").value;
-      const width = document.getElementById("settingWidth").value;
+function formatClock(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
 
-      let url = `/api/stream?quality=${quality}&fps=${fps}`;
-      if (width) url += `&width=${width}`;
+function startRecordingTimer(startedAt) {
+  recStartTime = startedAt;
+  if (recTimerInt) clearInterval(recTimerInt);
+  const tick = () => {
+    const seconds = Math.floor((Date.now() - recStartTime) / 1000);
+    document.getElementById("recTimer").textContent = formatClock(seconds);
+  };
+  tick();
+  recTimerInt = setInterval(tick, 1000);
+}
 
-      addLog(`Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
+function applyManualRecordingState(status) {
+  const recBtn = document.getElementById("recBtn");
+  const recBar = document.getElementById("recBar");
+  const recTag = document.getElementById("recTag");
+  const recFilename = document.getElementById("recFilename");
 
-      const img = document.getElementById("streamImg");
-      const placeholder = document.getElementById("streamPlaceholder");
-      const overlay = document.getElementById("streamOverlay");
+  if (status?.recording) {
+    recording = true;
+    recBtn.textContent = "⏹ Stop Rec";
+    recBtn.className = "btn btn-danger";
+    recBar.classList.add("active");
+    recTag.style.display = "inline";
+    recFilename.textContent = status.filename || "";
+    const startedAt = Date.parse(status.startedAt || status.started_at || "") || Date.now();
+    startRecordingTimer(startedAt);
+  } else {
+    recording = false;
+    if (recTimerInt) clearInterval(recTimerInt);
+    recTimerInt = null;
+    recStartTime = null;
+    recBtn.textContent = "⏺ Start Rec";
+    recBtn.className = "btn btn-success";
+    recBar.classList.remove("active");
+    recTag.style.display = "none";
+    recFilename.textContent = "";
+    document.getElementById("recTimer").textContent = "00:00:00";
+  }
 
-      // Setăm sursa imaginii - browserul va reda MJPEG automat
-      img.src = url;
-      img.style.display = "block";
-      placeholder.style.display = "none";
-      overlay.style.display = "flex";
+  recBtn.disabled = workflowActive;
+}
 
-      document.getElementById("qualityTag").textContent = quality.toUpperCase();
-      document.getElementById("fpsTag").textContent = fps + " FPS";
+function renderWorkflowSummary(run) {
+  const el = document.getElementById("workflowSummary");
+  if (!run) {
+    el.classList.add("empty");
+    el.innerHTML = "Nu există încă niciun workflow finalizat.";
+    return;
+  }
 
-      document.getElementById("btnStartStream").style.display = "none";
-      document.getElementById("btnStopStream").style.display = "flex";
+  const plate = escapeHtml(run.selected_plate || "UNKNOWN");
+  const folder = escapeHtml(run.event_folder || run.event_id || "—");
+  const status = run.error ? `Eroare: ${escapeHtml(run.error)}` : "Finalizat";
+  const links = [];
+  if (run.snapshot_url) {
+    links.push(`<a class="btn btn-sm" href="${run.snapshot_url}" target="_blank" rel="noreferrer">📸 Snapshot</a>`);
+  }
+  if (!run.busy && run.event_folder) {
+    links.push(`<a class="btn btn-sm" href="/events/${encodeURIComponent(run.event_folder)}/camera1.mp4" target="_blank" rel="noreferrer">🎥 Camera 1</a>`);
+    links.push(`<a class="btn btn-sm" href="/events/${encodeURIComponent(run.event_folder)}/camera2.mp4" target="_blank" rel="noreferrer">🎥 Camera 2</a>`);
+  }
 
-      isStreaming = true;
-      streamStartTime = Date.now();
-      updateStreamInfo();
+  el.classList.remove("empty");
+  el.innerHTML = `
+    <div><strong>Ultimul workflow:</strong> ${plate}</div>
+    <div>Status: ${status}</div>
+    <div>Pornit: ${formatDateTime(run.started_at)}</div>
+    <div>Folder: ${folder}</div>
+    <div>Durată: ${formatClock(run.duration_seconds || 0)}</div>
+    <div class="summary-links">${links.join("") || "<span style='color:#64748b'>Fără fișiere încă.</span>"}</div>
+  `;
+}
 
-      img.onerror = () => {
-        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
-        setTimeout(() => {
-          if (isStreaming) {
-            addLog("Reconectare automată...", "info");
-            img.src = url + "&t=" + Date.now(); // Cache bust
-          }
-        }, 3000);
-      };
+// ---- Tab switching ----
+function showTab(name) {
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  document.getElementById("tab-" + name + "-btn").classList.add("active");
+  if (name === "info") { loadRecordings(); loadDeviceInfo(); loadEvents(); }
+  if (name === "ptz" && currentCamera === 2) loadPresets();
+  if (name === "image" && currentCamera === 2) loadImageSettings();
+  if (name === "alpr") {
+    const sel = document.getElementById("alprCameraSelect");
+    if (sel) sel.value = String(currentCamera);
+  }
+}
 
-      addLog("Stream pornit cu succes", "success");
-    }
-
-    function stopStream() {
-      const img = document.getElementById("streamImg");
-      const placeholder = document.getElementById("streamPlaceholder");
-      const overlay = document.getElementById("streamOverlay");
-
-      img.src = "";
-      img.style.display = "none";
-      placeholder.style.display = "block";
-      overlay.style.display = "none";
-
-      document.getElementById("btnStartStream").style.display = "flex";
-      document.getElementById("btnStopStream").style.display = "none";
-      document.getElementById("streamInfo").textContent = "";
-
-      isStreaming = false;
-      streamStartTime = null;
-
-      addLog("Stream oprit", "warn");
-    }
-
-    function updateStreamInfo() {
-      if (!isStreaming || !streamStartTime) return;
-      const elapsed = Math.floor((Date.now() - streamStartTime) / 1000);
-      const mins = Math.floor(elapsed / 60);
-      const secs = elapsed % 60;
-      document.getElementById("streamInfo").textContent =
-        `Activ: ${mins}m ${secs.toString().padStart(2, "0")}s`;
-      setTimeout(updateStreamInfo, 1000);
-    }
-
-    // ---- Snapshot ----
-    async function takeSnapshot() {
-      addLog("Capturez snapshot...", "info");
-      try {
-        const quality = document.getElementById("settingQuality").value;
-        const url = `/api/snapshot?quality=${quality}`;
-        
-        // Deschide snapshot-ul în tab nou
-        window.open(url, "_blank");
-        addLog("Snapshot capturat - deschis în tab nou", "success");
-      } catch (err) {
-        addLog(`Eroare snapshot: ${err.message}`, "error");
-      }
-    }
-
-    async function saveSnapshot() {
-      addLog("Salvez snapshot pe disc...", "info");
-      try {
-        const quality = document.getElementById("settingQuality").value;
-        const res = await fetch(`/api/snapshot/save?quality=${quality}`);
-        const data = await res.json();
-
-        if (data.success) {
-          addLog(`Salvat: ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`, "success");
-          loadSnapshots();
-        } else {
-          addLog(`Eroare: ${data.error}`, "error");
-        }
-      } catch (err) {
-        addLog(`Eroare salvare: ${err.message}`, "error");
-      }
-    }
-
-    // ---- Load Snapshots Gallery ----
-    async function loadSnapshots() {
-      try {
-        const res = await fetch("/api/snapshots");
-        const data = await res.json();
-        const gallery = document.getElementById("galleryContainer");
-
-        if (data.count === 0) {
-          gallery.innerHTML = '<p style="color: #64748b; font-size: 13px; grid-column: 1 / -1;">Niciun snapshot salvat.</p>';
-          return;
-        }
-
-        gallery.innerHTML = data.files.map(f => `
-          <div class="gallery-item" onclick="openModal('/snapshots/${f.filename}')">
-            <img src="${f.url}" alt="${f.filename}" loading="lazy">
-            <div class="time">${new Date(f.created).toLocaleString("ro-RO")}</div>
-          </div>
-        `).join("");
-      } catch (err) {
-        addLog("Nu s-au putut încărca snapshot-urile", "error");
-      }
-    }
-
-    // ---- Modal ----
-    function openModal(src) {
-      document.getElementById("modalImg").src = src;
-      document.getElementById("snapshotModal").classList.add("active");
-    }
-
-    function closeModal() {
-      document.getElementById("snapshotModal").classList.remove("active");
-    }
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeModal();
+async function runAlprTest() {
+  const btn = document.getElementById("alprRunBtn");
+  const statusEl = document.getElementById("alprStatusMsg");
+  const resultsEl = document.getElementById("alprResults");
+  const img = document.getElementById("alprPreviewImg");
+  const cam = parseInt(document.getElementById("alprCameraSelect").value, 10) || 1;
+  const quality = document.getElementById("alprQualitySelect").value || "main";
+  btn.disabled = true;
+  statusEl.textContent = "Se capturează și rulează modelul…";
+  statusEl.style.color = "#94a3b8";
+  resultsEl.innerHTML = "";
+  img.style.display = "none";
+  try {
+    const r = await fetch("/api/alpr/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ camera: cam, quality }),
     });
-
-    // ---- Check Status ----
-    async function checkStatus() {
-      addLog("Verific statusul camerei...", "info");
-      const dot = document.getElementById("statusDot");
-      const badge = document.getElementById("statusBadge");
-
-      badge.className = "status-badge connecting";
-      badge.textContent = "Se verifică...";
-
-      try {
-        const res = await fetch("/api/status");
-        const data = await res.json();
-
-        if (data.camera.online) {
-          dot.classList.add("online");
-          badge.className = "status-badge online";
-          badge.textContent = "Online";
-          addLog(`Camera online (${data.camera.responseTime})`, "success");
-          if (data.stream.video) {
-            addLog(`Video: ${data.stream.video}`, "info");
-          }
-        } else {
-          dot.classList.remove("online");
-          badge.className = "status-badge offline";
-          badge.textContent = "Offline";
-          addLog("Camera nu răspunde!", "error");
-        }
-      } catch (err) {
-        dot.classList.remove("online");
-        badge.className = "status-badge offline";
-        badge.textContent = "Eroare";
-        addLog(`Eroare verificare: ${err.message}`, "error");
+    let data;
+    try {
+      data = await r.json();
+    } catch {
+      statusEl.textContent = "Răspuns invalid de la server.";
+      statusEl.style.color = "#fca5a5";
+      return;
+    }
+    if (!r.ok) {
+      statusEl.textContent = data.error || ("HTTP " + r.status);
+      if (data.details) statusEl.textContent += ": " + data.details;
+      statusEl.style.color = "#fca5a5";
+      return;
+    }
+    if (data.enabled === false) {
+      statusEl.textContent = "ALPR dezactivat în .env (ALPR_ENABLED=0). Snapshot salvat — vezi previzualizarea.";
+      statusEl.style.color = "#fde047";
+    } else {
+      let done = "Analiză terminată.";
+      if (data.alpr_retried_with_main) {
+        done += " Sub stream: fără detecție → recapturat automat pe main.";
       }
+      statusEl.textContent = done;
+      statusEl.style.color = "#86efac";
     }
-
-    // ---- Load Camera Info ----
-    async function loadInfo() {
-      try {
-        const res = await fetch("/api/info");
-        const data = await res.json();
-        const info = document.getElementById("cameraInfo");
-        info.innerHTML = `
-          <dt>IP</dt><dd>${data.camera.ip}</dd>
-          <dt>Port RTSP</dt><dd>${data.camera.rtspPort}</dd>
-          <dt>Main Stream</dt><dd>${data.camera.mainStream}</dd>
-          <dt>Sub Stream</dt><dd>${data.camera.subStream}</dd>
-          <dt>Server Port</dt><dd>${data.server.port}</dd>
-        `;
-      } catch (err) {
-        console.error("Nu s-au putut încărca informațiile");
+    let html = "";
+    if (data.selected_plate) {
+      html += "<p><strong>Plăcuță aleasă:</strong> " + escapeHtml(data.selected_plate);
+      if (data.selected_confidence != null) html += " (" + escapeHtml(String(data.selected_confidence)) + "% încredere)";
+      html += "</p>";
+    }
+    if (Array.isArray(data.plates) && data.plates.length) {
+      html += "<ul style=\"margin:8px 0 0; padding-left:20px\">";
+      for (const p of data.plates) {
+        html += "<li>" + escapeHtml(p.plate) + " — " + escapeHtml(String(p.confidence)) + "%";
+        if (p.raw_plate) html += " <span style=\"color:#64748b\">(" + escapeHtml(String(p.raw_plate)) + ")</span>";
+        html += "</li>";
       }
+      html += "</ul>";
+    } else if (data.enabled) {
+      html += "<p style=\"color:#94a3b8; margin-top:8px\">Nicio plăcuță detectată pe acest cadru.</p>";
     }
-
-    // ---- Recording Controls ----
-    async function startRecording() {
-      const quality = document.getElementById("settingQuality").value;
-      addLog(`Pornesc înregistrarea (${quality})...`, "info");
-      try {
-        const res = await fetch(`/api/record/start?quality=${quality}`, { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) {
-          addLog(`Eroare: ${data.error}`, "error"); return;
-        }
-        isRecording = true;
-        recStartTime = Date.now();
-        document.getElementById("btnStartRec").style.display = "none";
-        document.getElementById("btnStopRec").style.display = "flex";
-        document.getElementById("recBar").classList.add("active");
-        document.getElementById("recFilename").textContent = data.filename;
-        // Adaugă tag REC pe stream overlay
-        const overlay = document.getElementById("streamOverlay");
-        if (!document.getElementById("recTag")) {
-          const tag = document.createElement("span");
-          tag.className = "stream-tag rec";
-          tag.id = "recTag";
-          tag.textContent = "⏺ REC";
-          overlay.appendChild(tag);
-        }
-        recTimerInterval = setInterval(updateRecTimer, 1000);
-        addLog(`Înregistrare pornită: ${data.filename}`, "success");
-      } catch (err) {
-        addLog(`Eroare pornire înregistrare: ${err.message}`, "error");
-      }
+    resultsEl.innerHTML = html;
+    if (data.snapshot_url) {
+      img.src = data.snapshot_url;
+      img.style.display = "block";
     }
+  } catch (err) {
+    statusEl.textContent = err && err.message ? err.message : String(err);
+    statusEl.style.color = "#fca5a5";
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-    async function stopRecording() {
-      addLog("Opresc înregistrarea...", "warn");
-      try {
-        const res = await fetch("/api/record/stop", { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) {
-          addLog(`Eroare: ${data.error}`, "error"); return;
-        }
-        isRecording = false;
-        recStartTime = null;
-        clearInterval(recTimerInterval);
-        document.getElementById("btnStartRec").style.display = "flex";
-        document.getElementById("btnStopRec").style.display = "none";
-        document.getElementById("recBar").classList.remove("active");
-        document.getElementById("recTimer").textContent = "00:00:00";
-        const recTag = document.getElementById("recTag");
-        if (recTag) recTag.remove();
-        addLog(`Salvat: ${data.filename} (${data.duration})`, "success");
-        setTimeout(loadRecordings, 1500); // așteptăm să se finalizeze fișierul
-      } catch (err) {
-        addLog(`Eroare oprire înregistrare: ${err.message}`, "error");
-      }
+// ---- Camera switching ----
+function switchCamera(cam) {
+  currentCamera = cam;
+  document.getElementById("camBtn1").classList.toggle("active", cam === 1);
+  document.getElementById("camBtn2").classList.toggle("active", cam === 2);
+
+  const ptzPanel = document.getElementById("ptzControls");
+  const ptzNA    = document.getElementById("ptzUnavailable");
+  ptzPanel.style.display = cam === 2 ? "block" : "none";
+  ptzNA.style.display    = cam === 2 ? "none"  : "block";
+
+  if (streaming) {
+    stopStream();
+    setTimeout(() => startStream(), 300);
+  }
+  log(`Cameră ${cam} selectată`, "info");
+}
+
+// ---- Stream ----
+function startStream() {
+  const quality = document.getElementById("qualitySelect").value;
+  const fps     = document.getElementById("fpsSelect").value;
+  const width   = document.getElementById("widthInput").value;
+  let url       = `/api/stream?camera=${currentCamera}&quality=${quality}&fps=${fps}`;
+  if (width) url += `&width=${width}`;
+
+  const img = document.getElementById("streamImg");
+  img.onload = () => {
+    document.getElementById("streamPlaceholder").style.display = "none";
+    document.getElementById("streamOverlay").style.display = "flex";
+    updateStatus("online");
+    log("Stream pornit", "success");
+  };
+  img.onerror = () => {
+    log("Eroare stream — verifică conexiunea", "error");
+    updateStatus("offline");
+    setTimeout(() => { if (streaming) startStream(); }, 3000);
+  };
+  img.src = url;
+  img.style.display = "block";
+
+  streaming = true;
+  document.getElementById("streamBtn").textContent = "⏹ Stop Stream";
+  document.getElementById("streamBtn").className   = "btn btn-danger";
+  updateStreamTags();
+}
+
+function stopStream() {
+  const img = document.getElementById("streamImg");
+  img.src = "";
+  img.style.display = "none";
+  document.getElementById("streamPlaceholder").style.display = "block";
+  document.getElementById("streamOverlay").style.display = "none";
+  streaming = false;
+  document.getElementById("streamBtn").textContent = "▶ Start Stream";
+  document.getElementById("streamBtn").className   = "btn btn-primary";
+  log("Stream oprit", "info");
+}
+
+function toggleStream() {
+  if (streaming) stopStream(); else startStream();
+}
+
+function updateStreamTags() {
+  const q = document.getElementById("qualitySelect").value;
+  const f = document.getElementById("fpsSelect").value;
+  document.getElementById("qualityTag").textContent = q === "main" ? "MAIN" : "SUB";
+  document.getElementById("fpsTag").textContent     = `${f}fps`;
+}
+
+// ---- Snapshot ----
+async function takeSnapshot() {
+  const quality = document.getElementById("qualitySelect").value;
+  window.open(`/api/snapshot?camera=${currentCamera}&quality=${quality}`, "_blank");
+}
+
+async function saveSnapshot() {
+  const quality = document.getElementById("qualitySelect").value;
+  const ts      = new Date().toISOString().replace(/[:.]/g, "-");
+  try {
+    const r = await fetch(`/api/snapshot/save?camera=${currentCamera}&quality=${quality}&filename=snap_${ts}`);
+    const d = await r.json();
+    if (d.success) { log(`Snapshot salvat: ${d.filename}`, "success"); loadGallery(); }
+    else           log(`Eroare snapshot: ${d.error}`, "error");
+  } catch (e) { log("Eroare snapshot: " + e.message, "error"); }
+}
+
+async function loadGallery() {
+  try {
+    const r = await fetch("/api/snapshots");
+    const d = await r.json();
+    document.getElementById("galleryCount").textContent = `${d.count} imagini`;
+    const g = document.getElementById("gallery");
+    if (d.files.length === 0) {
+      g.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#475569; font-size:13px; padding:16px">Nicio imagine salvată</p>';
+      return;
     }
+    g.innerHTML = d.files.map(f => `
+      <div class="gallery-item" onclick="openModal('${f.url}')">
+        <img src="${f.url}" loading="lazy" alt="${f.filename}">
+        <div class="time">${formatDateTime(f.created_at || f.created)}</div>
+      </div>
+    `).join("");
+  } catch (e) { log("Eroare galerie: " + e.message, "error"); }
+}
 
-    function updateRecTimer() {
-      if (!recStartTime) return;
-      const s = Math.floor((Date.now() - recStartTime) / 1000);
-      const h = Math.floor(s / 3600).toString().padStart(2, "0");
-      const m = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
-      const sec = (s % 60).toString().padStart(2, "0");
-      document.getElementById("recTimer").textContent = `${h}:${m}:${sec}`;
-    }
+// ---- Recording ----
+async function toggleRecording() {
+  if (workflowActive) {
+    log("Workflow activ - înregistrarea manuală este blocată", "warn");
+    return;
+  }
 
-    // ---- Load Recordings List ----
-    async function loadRecordings() {
-      try {
-        const res = await fetch("/api/recordings");
-        const data = await res.json();
-        const list = document.getElementById("recList");
-        if (data.count === 0) {
-          list.innerHTML = '<p style="color: #64748b; font-size: 13px;">Nicio înregistrare salvată.</p>';
-          return;
-        }
-        list.innerHTML = data.files.map(f => `
-          <div class="rec-item">
-            <span>🎥</span>
-            <div class="rec-name">
-              <div>${f.filename}</div>
-              <div style="font-size:11px;color:#64748b;">${new Date(f.created).toLocaleString("ro-RO")}</div>
-            </div>
-            <span class="rec-size">${f.sizeMB} MB</span>
-            <div class="rec-actions">
-              <a href="${f.downloadUrl}" download title="Descarcă"><button class="btn-icon">⬇</button></a>
-              <button class="btn-icon del" title="Șterge" onclick="deleteRecording('${f.filename}')">🗑</button>
-            </div>
-          </div>
-        `).join("");
-      } catch (err) {
-        addLog("Nu s-au putut încărca înregistrările", "error");
-      }
-    }
-
-    async function deleteRecording(filename) {
-      if (!confirm(`Ștergi înregistrarea ${filename}?`)) return;
-      try {
-        const res = await fetch(`/api/recordings/${encodeURIComponent(filename)}/delete`, { method: "POST" });
-        const data = await res.json();
-        if (data.success) {
-          addLog(`Șters: ${filename}`, "warn");
-          loadRecordings();
-        } else {
-          addLog(`Eroare: ${data.error}`, "error");
-        }
-      } catch (err) {
-        addLog(`Eroare ștergere: ${err.message}`, "error");
-      }
-    }
-
-    // ---- Camera 2 Diagnostic ----
-    async function diagnoseCamera2() {
-      addLog('🔍 Diagnostic Camera 2...', 'info');
-      try {
-        const res = await fetch('/api/diagnostic/camera2');
-        const data = await res.json();
-        
-        addLog(`=== DIAGNOSTIC CAMERA 2 ===`, 'info');
-        addLog(`IP: ${data.config.ip}`, 'info');
-        addLog(`Username: ${data.config.username}`, 'info');
-        addLog(`Password: ${data.config.password}`, 'info');
-        addLog(`RTSP Port: ${data.config.rtspPort}`, 'info');
-        addLog(`HTTP Port: ${data.config.httpPort}`, 'info');
-        addLog(`SDK Port: ${data.config.sdkPort}`, 'info');
-        
-        addLog(`--- CONNECTIVITY TESTS ---`, 'info');
-        Object.entries(data.tests).forEach(([test, result]) => {
-          if (result.success) {
-            addLog(`✅ ${test}: ${result.status} ${result.statusText}`, 'success');
-          } else {
-            addLog(`❌ ${test}: ${result.error}`, 'error');
-          }
-        });
-        
-        addLog(`--- RTSP URLS ---`, 'info');
-        addLog(`Main: ${data.urls.rtspMain}`, 'info');
-        addLog(`Sub: ${data.urls.rtspSub}`, 'info');
-        
-        // Check if any tests passed
-        const hasConnection = Object.values(data.tests).some(test => test.success);
-        if (hasConnection) {
-          addLog(`🎯 Camera 2 parțial accesibilă - verifică parola/RTSP`, 'warn');
-        } else {
-          addLog(`🚫 Camera 2 offline - verifică rețea/IP`, 'error');
-        }
-        
-      } catch (err) {
-        addLog(`Diagnostic failed: ${err.message}`, 'error');
-      }
-    }
-
-    // ---- Camera Switching ----
-    function switchCamera(camera) {
-      if (isStreaming) stopStream();
-      if (isRecording) stopRecording();
-      
-      currentCamera = camera;
-      
-      // Force clear current image
-      const img = document.getElementById("streamImg");
-      img.src = ""; // Clear src first
-      img.style.display = "none";
-      
-      // Reset placeholder
-      const placeholder = document.getElementById("streamPlaceholder");
-      placeholder.style.display = "block";
-      
-      // Hide overlay
-      const overlay = document.getElementById("streamOverlay");
-      overlay.style.display = "none";
-      
-      // Update UI
-      document.querySelectorAll('.camera-btn').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(`cam${camera}Btn`).classList.add('active');
-      
-      // Show/hide PTZ controls
-      const ptzContainer = document.getElementById('ptzContainer');
-      if (camera === 2) {
-        ptzContainer.classList.add('active');
-        addLog('Switchat la Camera 2 (PTZ)', 'info');
-        // Add warning that PTZ might be offline
-        setTimeout(() => {
-          addLog('ℹ️ Notă: Camera 2 trebuie să fie online pentru stream și PTZ', 'warn');
-        }, 1000);
+  if (!recording) {
+    const quality = document.getElementById("qualitySelect").value;
+    try {
+      const r = await fetch(`/api/record/start?camera=${currentCamera}&quality=${quality}`, { method: "POST" });
+      const d = await r.json();
+      if (d.success) {
+        applyManualRecordingState({ recording: true, filename: d.filename, startedAt: d.startedAt });
+        log(`Înregistrare pornită: ${d.filename}`, "success");
       } else {
-        ptzContainer.classList.remove('active');
-        addLog('Switchat la Camera 1 (Fix)', 'info');
+        log("Eroare: " + (d.error || d.detail || "necunoscută"), "error");
       }
-    }
-
-    // ---- Check Camera Status ----
-    async function checkCameraStatus(camera) {
-      try {
-        const res = await fetch(`/api/snapshot?camera=${camera}&quality=sub`, { 
-          signal: AbortSignal.timeout(5000) // 5 second timeout
-        });
-        if (res.ok) {
-          return { online: true, error: null };
-        } else {
-          return { online: false, error: `HTTP ${res.status}` };
-        }
-      } catch (err) {
-        return { online: false, error: err.message };
-      }
-    }
-
-    // ---- Enhanced Start Stream with Camera Check ----
-    async function startStream() {
-      // Check camera status first
-      addLog(`Verific Camera ${currentCamera}...`, 'info');
-      const status = await checkCameraStatus(currentCamera);
-      
-      if (!status.online) {
-        addLog(`❌ Camera ${currentCamera} offline: ${status.error}`, 'error');
-        addLog(`Camera ${currentCamera} nu este accesibilă - verifică IP/parolă/port`, 'warn');
-        return;
-      }
-      
-      const quality = document.getElementById("settingQuality").value;
-      const fps = document.getElementById("settingFps").value;
-      const width = document.getElementById("settingWidth").value;
-
-      let url = `/api/stream?camera=${currentCamera}&quality=${quality}&fps=${fps}`;
-      if (width) url += `&width=${width}`;
-
-      addLog(`Camera ${currentCamera} - Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
-
-      const img = document.getElementById("streamImg");
-      const placeholder = document.getElementById("streamPlaceholder");
-      const overlay = document.getElementById("streamOverlay");
-
-      img.src = url;
-      img.style.display = "block";
-      placeholder.style.display = "none";
-      overlay.style.display = "flex";
-
-      document.getElementById("qualityTag").textContent = quality.toUpperCase();
-      document.getElementById("fpsTag").textContent = fps + " FPS";
-
-      document.getElementById("btnStartStream").style.display = "none";
-      document.getElementById("btnStopStream").style.display = "flex";
-
-      isStreaming = true;
-      streamStartTime = Date.now();
-      updateStreamInfo();
-
-      // Better error handling - check if camera is accessible
-      img.onerror = () => {
-        addLog(`Camera ${currentCamera} - Stream nu răspunde (timeout sau cameră offline)`, "error");
-        
-        // Don't auto-reconnect for Camera 2 (PTZ likely offline)
-        if (currentCamera === 2) {
-          addLog("Camera 2 (PTZ) nu este accesibilă - verifică conexiunea", "warn");
-          stopStream();
-          return;
-        }
-        
-        // Auto-reconnect only for Camera 1
-        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
-        setTimeout(() => {
-          if (isStreaming && currentCamera === 1) {
-            addLog("Reconectare automată...", "info");
-            img.src = url + "&t=" + Date.now();
-          }
-        }, 3000);
-      };
-
-      // Load timeout - if no frame loads in 10 seconds, stop
-      const loadTimeout = setTimeout(() => {
-        if (isStreaming && !img.complete) {
-          addLog(`Camera ${currentCamera} - Timeout la încărcare`, "error");
-          stopStream();
-        }
-      }, 10000);
-
-      img.onload = () => {
-        clearTimeout(loadTimeout);
-        addLog("Stream pornit cu succes", "success");
-      };
-    }
-    function initPTZ() {
-      // Joystick direction buttons
-      document.querySelectorAll('.ptz-direction').forEach(btn => {
-        btn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          const direction = btn.dataset.dir;
-          const speed = document.getElementById('ptzSpeed').value;
-          ptzMoveStart(direction, speed);
-        });
-        
-        btn.addEventListener('mouseup', () => ptzMoveStop());
-        btn.addEventListener('mouseleave', () => ptzMoveStop());
-        btn.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          const direction = btn.dataset.dir;
-          const speed = document.getElementById('ptzSpeed').value;
-          ptzMoveStart(direction, speed);
-        });
-        btn.addEventListener('touchend', () => ptzMoveStop());
-      });
-      
-      // Speed slider
-      document.getElementById('ptzSpeed').addEventListener('input', (e) => {
-        document.getElementById('ptzSpeedValue').textContent = e.target.value;
-      });
-    }
-
-    function ptzMoveStart(direction, speed) {
-      if (ptzMoveInterval) return;
-      
-      addLog(`PTZ move: ${direction} speed=${speed}`, 'info');
-      
-      // Send move command
-      fetch('/api/ptz/move', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ direction, speed: parseInt(speed) })
-      }).then(res => res.json()).then(data => {
-        if (!data.success) {
-          addLog(`PTZ move error: ${data.error}`, 'error');
-        }
-      }).catch(err => {
-        addLog(`PTZ move failed: ${err.message}`, 'error');
-      });
-      
-      // Keep sending move command every 500ms while holding
-      ptzMoveInterval = setInterval(() => {
-        fetch('/api/ptz/move', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ direction, speed: parseInt(speed) })
-        });
-      }, 500);
-    }
-
-    function ptzMoveStop() {
-      if (ptzMoveInterval) {
-        clearInterval(ptzMoveInterval);
-        ptzMoveInterval = null;
-        
-        fetch('/api/ptz/stop', { method: 'POST' })
-          .then(res => res.json())
-          .then(data => {
-            if (data.success) addLog('PTZ movement stopped', 'info');
-          });
-      }
-    }
-
-    function ptzGotoPreset() {
-      const preset = parseInt(document.getElementById('ptzPreset').value);
-      if (!preset || preset < 1 || preset > 255) {
-        addLog('PTZ preset: introdu un număr între 1-255', 'error');
-        return;
-      }
-      
-      addLog(`PTZ goto preset: ${preset}`, 'info');
-      fetch('/api/ptz/goto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ preset })
-      }).then(res => res.json()).then(data => {
-        if (data.success) {
-          addLog(`PTZ moved to preset ${preset}`, 'success');
-        } else {
-          addLog(`PTZ goto error: ${data.error}`, 'error');
-        }
-      }).catch(err => {
-        addLog(`PTZ goto failed: ${err.message}`, 'error');
-      });
-    }
-
-    function ptzGotoPosition() {
-      const x = parseFloat(document.getElementById('ptzX').value);
-      const y = parseFloat(document.getElementById('ptzY').value);
-      const zoom = parseFloat(document.getElementById('ptzZoom').value);
-      
-      if (isNaN(x) || isNaN(y) || isNaN(zoom)) {
-        addLog('PTZ position: introdu valori valide pentru X, Y, Zoom', 'error');
-        return;
-      }
-      
-      addLog(`PTZ goto position: x=${x}, y=${y}, zoom=${zoom}`, 'info');
-      fetch('/api/ptz/position', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ x, y, zoom })
-      }).then(res => res.json()).then(data => {
-        if (data.success) {
-          addLog(`PTZ moved to position`, 'success');
-        } else {
-          addLog(`PTZ position error: ${data.error}`, 'error');
-        }
-      }).catch(err => {
-        addLog(`PTZ position failed: ${err.message}`, 'error');
-      });
-    }
-
-    function ptzStop() {
-      addLog('PTZ stop movement', 'info');
-      fetch('/api/ptz/stop', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            addLog('PTZ stopped', 'success');
-          } else {
-            addLog(`PTZ stop error: ${data.error}`, 'error');
-          }
-        });
-    }
-
-    function ptzStatus() {
-      addLog('PTZ getting status...', 'info');
-      fetch('/api/ptz/status')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            addLog('PTZ status received', 'success');
-            console.log('PTZ Status:', data.raw);
-          } else {
-            addLog(`PTZ status error: ${data.error}`, 'error');
-          }
-        })
-        .catch(err => {
-          addLog(`PTZ status failed: ${err.message}`, 'error');
-        });
-    }
-
-    // ---- Update existing functions to support camera parameter ----
-    function startStream() {
-      const quality = document.getElementById("settingQuality").value;
-      const fps = document.getElementById("settingFps").value;
-      const width = document.getElementById("settingWidth").value;
-
-      let url = `/api/stream?camera=${currentCamera}&quality=${quality}&fps=${fps}`;
-      if (width) url += `&width=${width}`;
-
-      addLog(`Camera ${currentCamera} - Pornesc stream: ${quality}, ${fps} FPS${width ? `, ${width}px` : ""}`, "info");
-
-      const img = document.getElementById("streamImg");
-      const placeholder = document.getElementById("streamPlaceholder");
-      const overlay = document.getElementById("streamOverlay");
-
-      img.src = url;
-      img.style.display = "block";
-      placeholder.style.display = "none";
-      overlay.style.display = "flex";
-
-      document.getElementById("qualityTag").textContent = quality.toUpperCase();
-      document.getElementById("fpsTag").textContent = fps + " FPS";
-
-      document.getElementById("btnStartStream").style.display = "none";
-      document.getElementById("btnStopStream").style.display = "flex";
-
-      isStreaming = true;
-      streamStartTime = Date.now();
-      updateStreamInfo();
-
-      // Better error handling - check if camera is accessible
-      img.onerror = () => {
-        addLog(`Camera ${currentCamera} - Stream nu răspunde (timeout sau cameră offline)`, "error");
-        
-        // Don't auto-reconnect for Camera 2 (PTZ likely offline)
-        if (currentCamera === 2) {
-          addLog("Camera 2 (PTZ) nu este accesibilă - verifică conexiunea", "warn");
-          stopStream();
-          return;
-        }
-        
-        // Auto-reconnect only for Camera 1
-        addLog("Stream întrerupt - se reîncearcă în 3 secunde...", "warn");
-        setTimeout(() => {
-          if (isStreaming && currentCamera === 1) {
-            addLog("Reconectare automată...", "info");
-            img.src = url + "&t=" + Date.now();
-          }
-        }, 3000);
-      };
-
-      // Load timeout - if no frame loads in 10 seconds, stop
-      const loadTimeout = setTimeout(() => {
-        if (isStreaming && !img.complete) {
-          addLog(`Camera ${currentCamera} - Timeout la încărcare`, "error");
-          stopStream();
-        }
-      }, 10000);
-
-      img.onload = () => {
-        clearTimeout(loadTimeout);
-        addLog("Stream pornit cu succes", "success");
-      };
-    }
-
-    async function takeSnapshot() {
-      addLog(`Camera ${currentCamera} - Capturez snapshot...`, "info");
-      try {
-        const quality = document.getElementById("settingQuality").value;
-        const url = `/api/snapshot?camera=${currentCamera}&quality=${quality}`;
-        
-        window.open(url, "_blank");
-        addLog("Snapshot capturat - deschis în tab nou", "success");
-      } catch (err) {
-        addLog(`Eroare snapshot: ${err.message}`, "error");
-      }
-    }
-
-    async function saveSnapshot() {
-      addLog(`Camera ${currentCamera} - Salvez snapshot pe disc...`, "info");
-      try {
-        const quality = document.getElementById("settingQuality").value;
-        const res = await fetch(`/api/snapshot/save?camera=${currentCamera}&quality=${quality}`);
-        const data = await res.json();
-
-        if (data.success) {
-          addLog(`Salvat: ${data.filename} (${(data.size / 1024).toFixed(1)} KB)`, "success");
-          loadSnapshots();
-        } else {
-          addLog(`Eroare: ${data.error}`, "error");
-        }
-      } catch (err) {
-        addLog(`Eroare salvare: ${err.message}`, "error");
-      }
-    }
-
-    async function startRecording() {
-      const quality = document.getElementById("settingQuality").value;
-      addLog(`Camera ${currentCamera} - Pornesc înregistrarea (${quality})...`, "info");
-      try {
-        const res = await fetch(`/api/record/start?camera=${currentCamera}&quality=${quality}`, { method: "POST" });
-        const data = await res.json();
-        if (!res.ok) {
-          addLog(`Eroare: ${data.error}`, "error"); return;
-        }
-        isRecording = true;
-        recStartTime = Date.now();
-        document.getElementById("btnStartRec").style.display = "none";
-        document.getElementById("btnStopRec").style.display = "flex";
-        document.getElementById("recBar").classList.add("active");
-        document.getElementById("recFilename").textContent = data.filename;
-        const overlay = document.getElementById("streamOverlay");
-        if (!document.getElementById("recTag")) {
-          const tag = document.createElement("span");
-          tag.className = "stream-tag rec";
-          tag.id = "recTag";
-          tag.textContent = "⏺ REC";
-          overlay.appendChild(tag);
-        }
-        recTimerInterval = setInterval(updateRecTimer, 1000);
-        addLog(`Înregistrare pornită: ${data.filename}`, "success");
-      } catch (err) {
-        addLog(`Eroare pornire înregistrare: ${err.message}`, "error");
-      }
-    }
-
-    // ---- Init ----
-    window.addEventListener("load", () => {
-      addLog("Aplicația pornită", "success");
-      loadInfo();
-      loadSnapshots();
+    } catch (e) { log("Eroare înregistrare: " + e.message, "error"); }
+  } else {
+    try {
+      const r = await fetch("/api/record/stop", { method: "POST" });
+      const d = await r.json();
+      applyManualRecordingState({ recording: false });
+      log(`Înregistrare oprită: ${d.filename} (${d.duration || "0s"})`, "success");
       loadRecordings();
-      checkStatus();
-      initPTZ();
+    } catch (e) { log("Eroare stop înregistrare: " + e.message, "error"); }
+  }
+}
+
+async function loadRecordings() {
+  try {
+    const r = await fetch("/api/recordings");
+    const d = await r.json();
+    document.getElementById("recCount").textContent = `${d.count} fișiere`;
+    const list = document.getElementById("recList");
+    if (d.files.length === 0) {
+      list.innerHTML = '<p style="text-align:center; color:#475569; font-size:13px; padding:12px">Nicio înregistrare</p>';
+      return;
+    }
+    list.innerHTML = d.files.map(f => `
+      <div class="rec-item">
+        <div class="rec-name">${f.filename}</div>
+        <div class="rec-size">${f.sizeMB} MB</div>
+        <div class="rec-actions">
+          <a href="${f.downloadUrl}" download class="btn-icon" title="Download">⬇</a>
+          <button class="btn-icon del" onclick="deleteRecording('${f.filename}')" title="Șterge">🗑</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (e) { log("Eroare înregistrări: " + e.message, "error"); }
+}
+
+async function deleteRecording(filename) {
+  if (!confirm(`Ștergi ${filename}?`)) return;
+  try {
+    const r = await fetch(`/api/recordings/${filename}/delete`, { method: "POST" });
+    const d = await r.json();
+    if (d.success) { log(`Șters: ${filename}`, "success"); loadRecordings(); }
+    else           log("Eroare ștergere: " + d.error, "error");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+async function syncManualRecording() {
+  try {
+    const r = await fetch("/api/record/status");
+    const d = await r.json();
+    applyManualRecordingState(d);
+  } catch {}
+}
+
+async function triggerWorkflow() {
+  if (workflowActive) {
+    log("Workflow deja activ", "warn");
+    return;
+  }
+
+  const btn = document.getElementById("workflowBtn");
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/workflow/trigger", { method: "POST" });
+    const d = await r.json();
+    if (r.ok && d.success) {
+      log(`Workflow pornit: ${d.session_id}`, "success");
+      await refreshWorkflowStatus();
+    } else {
+      log("Workflow respins: " + (d.error || d.detail || `HTTP ${r.status}`), "warn");
+    }
+  } catch (e) {
+    log("Eroare workflow: " + e.message, "error");
+  } finally {
+    if (!workflowActive) btn.disabled = false;
+  }
+}
+
+async function refreshWorkflowStatus() {
+  try {
+    const r = await fetch("/api/workflow/status");
+    const d = await r.json();
+    const bar = document.getElementById("workflowBar");
+    const title = document.getElementById("workflowTitle");
+    const meta = document.getElementById("workflowMeta");
+    const timer = document.getElementById("workflowTimer");
+    const btn = document.getElementById("workflowBtn");
+    const wasBusy = workflowActive;
+
+    workflowActive = !!d.busy;
+    btn.disabled = workflowActive;
+    applyManualRecordingState(recording ? {
+      recording: true,
+      filename: document.getElementById("recFilename").textContent,
+      startedAt: recStartTime ? new Date(recStartTime).toISOString() : new Date().toISOString(),
+    } : { recording: false });
+
+    if (workflowActive) {
+      bar.classList.add("active");
+      title.textContent = `Workflow activ (${d.source || "api"})`;
+      meta.textContent = `Folder: ${d.event_folder || d.event_id || "pregătire"} | Placă: ${d.selected_plate || "UNKNOWN"}`;
+      timer.textContent = formatClock(d.remaining_seconds || 0);
+      renderWorkflowSummary(d);
+    } else {
+      bar.classList.remove("active");
+      title.textContent = "Workflow inactiv";
+      if (d.last_event) {
+        meta.textContent = `Ultimul: ${d.last_event.selected_plate || "UNKNOWN"} | ${formatDateTime(d.last_event.completed_at || d.last_event.started_at)}`;
+        renderWorkflowSummary(d.last_event);
+      } else {
+        meta.textContent = "Așteaptă trigger din browser sau ESP";
+        renderWorkflowSummary(null);
+      }
+      timer.textContent = "00:00";
+    }
+
+    const nextSignature = workflowActive
+      ? `busy:${d.session_id}:${d.remaining_seconds}`
+      : `idle:${d.last_event?.session_id || "none"}:${d.last_event?.completed_at || "none"}`;
+    if (workflowSignature !== nextSignature) {
+      if (!wasBusy && workflowActive) {
+        log(`Workflow activ pe ${d.active_cameras?.join(", ") || "1,2"} - ${d.duration_seconds || 0}s`, "info");
+      }
+      if (wasBusy && !workflowActive) {
+        const finished = d.last_event;
+        log(
+          `Workflow finalizat: ${(finished && finished.selected_plate) || "UNKNOWN"}${finished?.error ? " - " + finished.error : ""}`,
+          finished?.error ? "warn" : "success"
+        );
+        loadEvents();
+      }
+      workflowSignature = nextSignature;
+    }
+  } catch (e) {
+    log("Eroare status workflow: " + e.message, "error");
+  }
+}
+
+async function loadEvents() {
+  try {
+    const r = await fetch("/api/events");
+    const d = await r.json();
+    document.getElementById("eventsCount").textContent = `${d.count} evenimente`;
+    const list = document.getElementById("eventsList");
+    if (!d.events || d.events.length === 0) {
+      list.innerHTML = '<p style="text-align:center; color:#475569; font-size:13px; padding:12px">Niciun eveniment salvat</p>';
+      return;
+    }
+
+    list.innerHTML = d.events.map(event => {
+      const snapshot = event.snapshot_url
+        ? `<img class="event-thumb" src="${event.snapshot_url}" loading="lazy" alt="${escapeHtml(event.folder)}">`
+        : '<div class="event-thumb empty">Fără snapshot</div>';
+      const links = [];
+      if (event.snapshot_url) {
+        links.push(`<a class="btn btn-sm" href="${event.snapshot_url}" target="_blank" rel="noreferrer">📸 Snapshot</a>`);
+      }
+      if (event.videos?.camera1) {
+        links.push(`<a class="btn btn-sm" href="${event.videos.camera1}" target="_blank" rel="noreferrer">🎥 Camera 1</a>`);
+      }
+      if (event.videos?.camera2) {
+        links.push(`<a class="btn btn-sm" href="${event.videos.camera2}" target="_blank" rel="noreferrer">🎥 Camera 2</a>`);
+      }
+
+      return `
+        <div class="event-item">
+          ${snapshot}
+          <div class="event-body">
+            <div class="event-head">
+              <span class="event-plate">${escapeHtml(event.selected_plate || "UNKNOWN")}</span>
+              <span class="pill">${event.alpr?.plates?.length ? "ALPR" : "UNKNOWN"}</span>
+            </div>
+            <div class="event-time">${formatDateTime(event.created_at || event.created)}</div>
+            <div class="event-folder">${escapeHtml(event.folder)}</div>
+            <div class="event-links">${links.join("") || "<span style='color:#64748b'>Fără fișiere.</span>"}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (e) {
+    log("Eroare evenimente: " + e.message, "error");
+  }
+}
+
+// ---- Status ----
+async function checkStatus() {
+  log("Verific status cameră...", "info");
+  try {
+    const r = await fetch("/api/status");
+    const d = await r.json();
+    if (d.camera.online) {
+      updateStatus("online");
+      log(`Camera online — ${d.camera.responseTime} — ${d.stream.video || "N/A"}`, "success");
+    } else {
+      updateStatus("offline");
+      log("Camera offline sau RTSP inaccesibil", "error");
+    }
+  } catch (e) { log("Eroare status: " + e.message, "error"); }
+}
+
+function updateStatus(state) {
+  const dot   = document.getElementById("statusDot");
+  const badge = document.getElementById("statusBadge");
+  dot.className = "dot " + (state === "online" ? "online" : "");
+  badge.className = "status-badge " + state;
+  badge.textContent = { online: "Online", offline: "Offline", connecting: "Se conectează..." }[state] || state;
+}
+
+// ---- PTZ ----
+let ptzMoving = false;
+
+/** Show a brief error toast in the PTZ tab */
+function ptzErr(msg) {
+  const el = document.getElementById("ptzError");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = "block";
+  clearTimeout(ptzErr._t);
+  ptzErr._t = setTimeout(() => { el.style.display = "none"; }, 4000);
+  log("PTZ: " + msg, "error");
+}
+
+async function ptzApi(path, body) {
+  const resp = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const d = await resp.json().catch(() => ({}));
+  if (!resp.ok || d.success === false) {
+    const detail = d.error || d.details || `HTTP ${resp.status}`;
+    ptzErr(detail);
+  }
+  return d;
+}
+
+async function ptzStart(direction) {
+  const speed = document.getElementById("ptzSpeed").value;
+  ptzMoving = true;
+  document.querySelector(`.ptz-direction[data-dir="${direction}"]`)?.classList.add("pressing");
+  try { await ptzApi("/api/ptz/move", { direction, speed: parseInt(speed) }); }
+  catch (e) { ptzErr(e.message); }
+}
+
+async function ptzStop() {
+  if (!ptzMoving) return;
+  ptzMoving = false;
+  document.querySelectorAll(".ptz-direction").forEach(el => el.classList.remove("pressing"));
+  try { await fetch("/api/ptz/stop", { method: "POST" }); }
+  catch {}
+}
+
+async function ptzZoomStart(direction) {
+  const speed = document.getElementById("ptzSpeed").value;
+  ptzMoving = true;
+  try { await ptzApi("/api/ptz/zoom", { direction, speed: parseInt(speed) }); }
+  catch (e) { ptzErr(e.message); }
+}
+
+async function ptzFocus(direction) {
+  try { await ptzApi("/api/ptz/focus", { direction }); }
+  catch (e) { ptzErr(e.message); }
+}
+
+async function ptzFocusStop() {
+  try { await fetch("/api/ptz/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ direction: "stop" }) }); }
+  catch {}
+}
+
+// ---- Presets ----
+async function loadPresets() {
+  try {
+    const r = await fetch("/api/ptz/presets");
+    const d = await r.json();
+    const list = document.getElementById("presetsList");
+    if (!d.presets || d.presets.length === 0) {
+      list.innerHTML = '<div class="preset-empty">Niciun preset salvat</div>';
+      return;
+    }
+    list.innerHTML = d.presets.map((p, i) => `
+      <div class="preset-item">
+        <div class="preset-id">${i + 1}</div>
+        <div class="preset-name">${p.name}</div>
+        <button class="btn-icon btn-sm" onclick="gotoPreset('${p.token}')" title="Du-te la preset">▶</button>
+        <button class="btn-icon del btn-sm" onclick="deletePreset('${p.token}', '${p.name}')" title="Șterge">🗑</button>
+      </div>
+    `).join("");
+  } catch (e) { log("Eroare preseturi: " + e.message, "error"); }
+}
+
+async function gotoPreset(token) {
+  try {
+    const d = await ptzApi("/api/ptz/goto", { token });
+    if (d.success) log(`Mergi la preset "${token}"`, "info");
+  } catch (e) { ptzErr(e.message); }
+}
+
+async function savePreset() {
+  const name = document.getElementById("presetNameInput").value.trim();
+  if (!name) { alert("Introdu un nume pentru preset"); return; }
+  try {
+    const r = await fetch("/api/ptz/presets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
     });
-  </script>
+    const d = await r.json();
+    if (d.success) {
+      log(`Preset "${name}" salvat (token: ${d.token})`, "success");
+      document.getElementById("presetNameInput").value = "";
+      loadPresets();
+    } else log("Eroare salvare preset: " + (d.error || "unknown"), "error");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+async function deletePreset(token, name) {
+  if (!confirm(`Ștergi preset "${name}"?`)) return;
+  try {
+    const r = await fetch(`/api/ptz/presets/${encodeURIComponent(token)}`, { method: "DELETE" });
+    const d = await r.json();
+    if (d.success) { log(`Preset "${name}" șters`, "success"); loadPresets(); }
+    else           log("Eroare ștergere preset: " + (d.error||""), "warn");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+// ---- AUDIO: Listen ----
+function toggleListen() {
+  const btn    = document.getElementById("listenBtn");
+  const player = document.getElementById("audioPlayer");
+  if (!listenActive) {
+    listenActive = true;
+    btn.textContent = "⏹ Oprește ascultarea";
+    btn.className   = "btn btn-danger";
+    player.src    = `/api/audio/listen?camera=${currentCamera}&t=${Date.now()}`;
+    player.style.display = "block";
+    player.play().catch(e => log("Audio autoplay blocat: " + e.message, "warn"));
+    log("Ascultare cameră pornită", "info");
+  } else {
+    listenActive = false;
+    btn.textContent = "▶ Ascultă camera";
+    btn.className   = "btn btn-success";
+    player.pause();
+    player.src = "";
+    player.style.display = "none";
+    log("Ascultare cameră oprită", "info");
+  }
+}
+
+// ---- AUDIO: Talk ----
+async function toggleTalk() {
+  const btn = document.getElementById("talkBtn");
+  if (!talkActive) {
+    await openAudioSession();
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 8000, channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      log("Acces microfon refuzat: " + e.message, "error");
+      return;
+    }
+
+    const wsScheme = location.protocol === "https:" ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${location.host}/ws/audio`;
+    talkWs = new WebSocket(wsUrl);
+    talkWs.binaryType = "arraybuffer";
+
+    talkWs.onopen = () => {
+      log("WebSocket audio deschis", "success");
+      micCtx     = new AudioContext({ sampleRate: 8000 });
+      const src  = micCtx.createMediaStreamSource(micStream);
+      micAnalyser = micCtx.createAnalyser();
+      micAnalyser.fftSize = 256;
+      const proc = micCtx.createScriptProcessor(512, 1, 1);
+
+      proc.onaudioprocess = (e) => {
+        if (talkWs?.readyState !== WebSocket.OPEN) return;
+        const float32 = e.inputBuffer.getChannelData(0);
+        const int16   = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) {
+          int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+        }
+        talkWs.send(int16.buffer);
+      };
+
+      src.connect(micAnalyser);
+      src.connect(proc);
+      proc.connect(micCtx.destination);
+
+      // Mic level meter
+      const data = new Uint8Array(micAnalyser.frequencyBinCount);
+      micLevelInt = setInterval(() => {
+        micAnalyser.getByteFrequencyData(data);
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        document.getElementById("micBar").style.width = Math.min(100, avg * 2) + "%";
+      }, 80);
+    };
+
+    talkWs.onclose = () => log("WebSocket audio închis", "info");
+    talkWs.onerror = e => log("WebSocket audio eroare", "error");
+
+    talkActive = true;
+    btn.textContent = "⏹ Oprește vorbitul";
+    btn.className   = "btn btn-danger";
+    log("Vorbit pornit — microfon activ", "success");
+
+  } else {
+    stopTalk();
+    await closeAudioSession();
+  }
+}
+
+function stopTalk() {
+  const btn = document.getElementById("talkBtn");
+  talkActive = false;
+  if (talkWs) { talkWs.close(); talkWs = null; }
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (micCtx) { micCtx.close(); micCtx = null; }
+  if (micLevelInt) { clearInterval(micLevelInt); micLevelInt = null; }
+  document.getElementById("micBar").style.width = "0%";
+  btn.textContent = "🎙 Vorbește";
+  btn.className   = "btn";
+  log("Vorbit oprit", "info");
+}
+
+async function openAudioSession() {
+  try {
+    const r = await fetch("/api/audio/open", { method: "POST" });
+    const d = await r.json();
+    if (d.success) {
+      document.getElementById("audioSessionDot").classList.add("active");
+      document.getElementById("audioSessionLabel").textContent = `Sesiune audio: deschisă (ID: ${d.sessionId})`;
+      log("Sesiune audio deschisă", "success");
+    } else log("Eroare sesiune audio: " + d.error, "error");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+async function closeAudioSession() {
+  try {
+    await fetch("/api/audio/close", { method: "POST" });
+    document.getElementById("audioSessionDot").classList.remove("active");
+    document.getElementById("audioSessionLabel").textContent = "Sesiune audio: închisă";
+    log("Sesiune audio închisă", "info");
+  } catch {}
+}
+
+// ---- Light Control ----
+async function setLight(mode) {
+  const brightness = document.getElementById("lightBrightSlider").value;
+  try {
+    const r = await fetch("/api/light", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, brightness: parseInt(brightness) }),
+    });
+    const d = await r.json();
+    if (d.success) {
+      log(`Lumina setată: ${mode} @ ${brightness}%`, "success");
+      ["lightIrBtn","lightWhiteBtn","lightOffBtn"].forEach(id => document.getElementById(id).className = "btn btn-sm");
+      const map = { ir: "lightIrBtn", white: "lightWhiteBtn", off: "lightOffBtn" };
+      if (map[mode]) document.getElementById(map[mode]).className = "btn btn-sm btn-primary";
+    } else log("Eroare lumina: " + d.error, "error");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+// ---- Image Settings ----
+async function loadImageSettings() {
+  try {
+    const r = await fetch("/api/image/settings");
+    const d = await r.json();
+    if (d.error) { log("Eroare setări imagine: " + d.error, "warn"); return; }
+    const setSlider = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) { el.value = val; document.getElementById(id + "Val").textContent = val; }
+    };
+    setSlider("imgBrightness",  d.brightness  || 50);
+    setSlider("imgContrast",    d.contrast    || 50);
+    setSlider("imgSaturation",  d.saturation  || 50);
+    setSlider("imgSharpness",   d.sharpness   || 50);
+    document.getElementById("imgIRCut").value = d.irCutFilter || "AUTO";
+    log("Setări imagine încărcate", "info");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+async function applyImageSettings() {
+  const payload = {
+    brightness:  parseInt(document.getElementById("imgBrightness").value),
+    contrast:    parseInt(document.getElementById("imgContrast").value),
+    saturation:  parseInt(document.getElementById("imgSaturation").value),
+    sharpness:   parseInt(document.getElementById("imgSharpness").value),
+    irCutFilter: document.getElementById("imgIRCut").value,
+  };
+  try {
+    const r = await fetch("/api/image/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.success) log("Setări imagine aplicate", "success");
+    else           log("Eroare: " + (d.error || "unknown"), "error");
+  } catch (e) { log("Eroare: " + e.message, "error"); }
+}
+
+// ---- Device Info ----
+async function loadDeviceInfo() {
+  try {
+    const r = await fetch("/api/device/info");
+    const d = await r.json();
+    if (d.error) return;
+    document.getElementById("di-manufacturer").textContent = d.manufacturer    || "—";
+    document.getElementById("di-model").textContent        = d.model           || "—";
+    document.getElementById("di-serial").textContent       = d.serialNumber    || "—";
+    document.getElementById("di-firmware").textContent     = d.firmwareVersion || "—";
+    document.getElementById("di-hwid").textContent         = d.hardwareId      || "—";
+    document.getElementById("di-ip").textContent           = d.ip              || "—";
+  } catch {}
+}
+
+// ---- Diagnostic ----
+async function runDiagnostic() {
+  log("Rulează diagnostic Camera 2...", "info");
+  try {
+    const r = await fetch("/api/diagnostic/camera2");
+    const d = await r.json();
+    Object.entries(d.tests).forEach(([name, result]) => {
+      if (result.success) log(`✓ ${name}: ${result.status || "OK"}`, "success");
+      else                log(`✗ ${name}: ${result.error}`, "error");
+    });
+  } catch (e) { log("Diagnostic error: " + e.message, "error"); }
+}
+
+// ---- Log ----
+function log(msg, type = "info") {
+  const el   = document.getElementById("log");
+  const time = new Date().toLocaleTimeString("ro");
+  const line = document.createElement("div");
+  line.className = type;
+  line.textContent = `[${time}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+  if (el.children.length > 200) el.removeChild(el.firstChild);
+}
+function clearLog() { document.getElementById("log").innerHTML = ""; }
+
+// ---- Modal ----
+function openModal(url) {
+  document.getElementById("modalImg").src = url;
+  document.getElementById("modal").classList.add("active");
+}
+function closeModal(e) {
+  if (e.target === document.getElementById("modal")) {
+    document.getElementById("modal").classList.remove("active");
+  }
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") document.getElementById("modal").classList.remove("active");
+});
+
+// ---- Init ----
+window.addEventListener("DOMContentLoaded", () => {
+  updateStreamTags();
+  checkStatus();
+  loadGallery();
+  loadEvents();
+  loadRecordings();
+  syncManualRecording();
+  refreshWorkflowStatus();
+  setInterval(syncManualRecording, 5000);
+  setInterval(refreshWorkflowStatus, 1000);
+  // Show PTZ unavailable by default (camera 1 selected)
+  document.getElementById("ptzControls").style.display  = "none";
+  document.getElementById("ptzUnavailable").style.display = "block";
+  log("HiLook Camera Control v3.0 pornit", "info");
+});
+</script>
+
 </body>
 </html>
