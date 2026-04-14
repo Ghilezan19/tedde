@@ -2005,6 +2005,9 @@ async function toggleTalk() {
     talkWs.onopen = () => {
       log("WebSocket audio deschis", "success");
       micCtx     = new AudioContext({ sampleRate: 8000 });
+      // #region agent log
+      fetch('http://127.0.0.1:7408/ingest/3badff84-3b4a-4b92-acfa-53693e2e3a96',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e5dd89'},body:JSON.stringify({sessionId:'e5dd89',location:'index.html:talkWs.onopen',message:'mic_ctx',data:{sampleRate:micCtx.sampleRate,state:micCtx.state},timestamp:Date.now(),hypothesisId:'D',runId:'post-fix'})}).catch(()=>{});
+      // #endregion
       const src  = micCtx.createMediaStreamSource(micStream);
       micAnalyser = micCtx.createAnalyser();
       micAnalyser.fftSize = 256;

@@ -159,7 +159,25 @@ class CustomerPortalService:
                     submitted_at TEXT NOT NULL,
                     FOREIGN KEY(link_id) REFERENCES customer_links(id) ON DELETE CASCADE
                 );
+
+                CREATE TABLE IF NOT EXISTS system_config (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
                 """
+            )
+            # Seed default values if not already present
+            conn.execute(
+                "INSERT OR IGNORE INTO system_config (key, value) VALUES (?, ?)",
+                ("tokens_remaining", "0"),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO system_config (key, value) VALUES (?, ?)",
+                ("cleanup_days", "30"),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO system_config (key, value) VALUES (?, ?)",
+                ("auto_cleanup_enabled", "1"),
             )
             conn.commit()
 
@@ -167,6 +185,51 @@ class CustomerPortalService:
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         return conn
+
+    # ------------------------------------------------------------------
+    # system_config helpers
+    # ------------------------------------------------------------------
+
+    def get_config_value(self, key: str, default: str = "") -> str:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM system_config WHERE key = ?", (key,)
+            ).fetchone()
+        return row["value"] if row else default
+
+    def set_config_value(self, key: str, value: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO system_config (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+            conn.commit()
+
+    def get_tokens_remaining(self) -> int:
+        try:
+            return int(self.get_config_value("tokens_remaining", "0"))
+        except ValueError:
+            return 0
+
+    def set_tokens_remaining(self, count: int) -> None:
+        self.set_config_value("tokens_remaining", str(max(0, count)))
+
+    def decrement_tokens(self) -> int:
+        """Decrement tokens by 1. Returns new count. Logs warning at 0."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM system_config WHERE key = 'tokens_remaining'"
+            ).fetchone()
+            current = int(row["value"]) if row else 0
+            new_val = max(0, current - 1)
+            conn.execute(
+                "INSERT OR REPLACE INTO system_config (key, value) VALUES ('tokens_remaining', ?)",
+                (str(new_val),),
+            )
+            conn.commit()
+        if new_val == 0:
+            logger.warning("[TOKENS] Token count reached 0 — no tokens remaining for billing")
+        return new_val
 
     def _event_dir(self, event_id: str) -> Path:
         safe_event_id = Path(event_id).name
@@ -307,6 +370,11 @@ class CustomerPortalService:
             payload["sms_status"] = result.status
             payload["sms_error"] = result.error
             payload["sent_at"] = sent_at
+
+            # Decrement tokens on successful send (billing model: 1 token per vehicle)
+            if result.status in {"sent", "mocked"}:
+                tokens_left = await asyncio.to_thread(self.decrement_tokens)
+                logger.info("[TOKENS] Decremented after SMS send — remaining: %d", tokens_left)
 
         out = self._serialize_link(payload)
         out["warnings"] = list(event_info.get("recording_warnings") or [])

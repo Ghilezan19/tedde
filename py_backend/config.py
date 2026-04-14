@@ -190,6 +190,22 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------ #
+    # Admin dashboards auth
+    # ------------------------------------------------------------------ #
+    admin_password: str = Field(
+        default="admin",
+        description="Password for the /admin dashboard.",
+    )
+    superadmin_password: str = Field(
+        default="DentaTimis02",
+        description="Password for the /super-admin dashboard.",
+    )
+    session_secret_key: str = Field(
+        default="change-me-in-production-use-a-random-secret",
+        description="Secret key used to sign session cookies (itsdangerous).",
+    )
+
+    # ------------------------------------------------------------------ #
     # Customer portal / SMS
     # ------------------------------------------------------------------ #
     public_base_url: str = Field(
