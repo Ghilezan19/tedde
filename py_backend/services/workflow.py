@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 import event_log
 from camera.media import save_snapshot
-from camera.recording import RecordingManager
+from camera.recording import RecordingManager, workflow_output_status
 from config import settings
 from services.alpr_service import ALPRService, normalize_plate_text
 
@@ -43,6 +43,10 @@ class WorkflowRun:
     alpr_result: dict[str, Any] | None = None
     completed_at: datetime | None = None
     error: str | None = None
+    recording_outputs: dict[str, bool] | None = None
+    recording_warnings: list[str] = field(default_factory=list)
+    # Target folder after ALPR; rename happens only after ffmpeg stops (see finally).
+    final_dir_planned: Path | None = None
 
     def remaining_seconds(self) -> int:
         if self.completed_at is not None:
@@ -52,6 +56,17 @@ class WorkflowRun:
 
     def public_status(self, busy: bool) -> dict[str, Any]:
         event_id = self.event_dir.name if self.event_dir else (self.temp_dir.name if self.temp_dir else None)
+        rec = self.recording_outputs
+        if rec is not None:
+            rec_block: dict[str, Any] = {
+                "recordings": {
+                    "camera1": bool(rec.get("camera1")),
+                    "camera2": bool(rec.get("camera2")),
+                },
+                "recording_partial": sum(1 for v in rec.values() if v) == 1,
+            }
+        else:
+            rec_block = {"recordings": None, "recording_partial": False}
         return {
             "busy": busy,
             "session_id": self.session_id,
@@ -66,6 +81,8 @@ class WorkflowRun:
             "snapshot_url": f"/events/{self.snapshot_relpath}" if self.snapshot_relpath else None,
             "error": self.error,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            **rec_block,
+            "recording_warnings": list(self.recording_warnings),
         }
 
 
@@ -134,6 +151,9 @@ class WorkflowService:
             "snapshot_url": None,
             "error": None,
             "completed_at": None,
+            "recordings": None,
+            "recording_warnings": [],
+            "recording_partial": False,
             "last_event": self._last_run.public_status(busy=False) if self._last_run else None,
         }
 
@@ -150,10 +170,11 @@ class WorkflowService:
                 stream=settings.workflow_record_stream,
                 duration=run.duration_seconds,
             )
-            event_log.step("Înregistrare pornită pe camerele 1 și 2.")
+            event_log.step("Înregistrare workflow pornită (camere 1 și 2, tolerant la eșec pe o cameră).")
 
             snapshot_path = run.temp_dir / "alpr_start.jpg"
             await save_snapshot(run.alpr_camera, "main", snapshot_path)
+            run.snapshot_relpath = f"{run.temp_dir.name}/{snapshot_path.name}"
             event_log.step(f"Snapshot ALPR capturat din camera {run.alpr_camera}.")
 
             alpr_result = await self._alpr.predict_image(snapshot_path)
@@ -161,13 +182,10 @@ class WorkflowService:
             selected_plate = normalize_plate_text(alpr_result["selected_plate"] or "UNKNOWN")
             run.selected_plate = selected_plate
 
-            final_dir = self._resolve_final_dir(selected_plate, run.started_at)
-            run.temp_dir.rename(final_dir)
-            run.event_dir = final_dir
-            run.temp_dir = final_dir
-            run.snapshot_relpath = f"{final_dir.name}/{snapshot_path.name}"
-            self._recording.update_workflow_event_dir(final_dir)
-            event_log.step(f"Director eveniment: {final_dir.name}")
+            run.final_dir_planned = self._resolve_final_dir(selected_plate, run.started_at)
+            event_log.step(
+                f"Înregistrare în {run.temp_dir.name}; redenumire după oprire → {run.final_dir_planned.name}"
+            )
 
             self._write_alpr_json(run)
 
@@ -177,9 +195,37 @@ class WorkflowService:
             logger.exception("[WORKFLOW] Workflow failed: %s", exc)
             event_log.warn(f"Eroare workflow: {exc}")
         finally:
+            stopped = None
             with contextlib.suppress(Exception):
-                await self._recording.stop_workflow()
+                stopped = await self._recording.stop_workflow()
             run.completed_at = datetime.now(timezone.utc)
+            # Rename only after muxers finish — ffmpeg keeps the spawn-time output path for +faststart trailer.
+            if (
+                run.final_dir_planned is not None
+                and run.temp_dir is not None
+                and run.temp_dir.exists()
+                and run.temp_dir.resolve() != run.final_dir_planned.resolve()
+            ):
+                try:
+                    run.temp_dir.rename(run.final_dir_planned)
+                    run.event_dir = run.final_dir_planned
+                    run.temp_dir = run.final_dir_planned
+                    run.snapshot_relpath = f"{run.final_dir_planned.name}/alpr_start.jpg"
+                except OSError:
+                    logger.exception(
+                        "[WORKFLOW] Could not rename %s → %s",
+                        run.temp_dir,
+                        run.final_dir_planned,
+                    )
+            if run.event_dir is not None:
+                if stopped and stopped.spawn_failed_cameras:
+                    run.recording_warnings.append(
+                        "Camere fără pornire ffmpeg: "
+                        + ", ".join(str(c) for c in sorted(stopped.spawn_failed_cameras))
+                    )
+                outs, warns = workflow_output_status(run.event_dir)
+                run.recording_outputs = outs
+                run.recording_warnings.extend(warns)
             if run.event_dir and not run.error and run.alpr_result is not None:
                 self._write_alpr_json(run)
             event_log.banner("WORKFLOW: FINALIZAT")

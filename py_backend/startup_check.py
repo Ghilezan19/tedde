@@ -5,7 +5,7 @@ Checks:
   1. ffmpeg binary exists and is executable
   2. Camera 1  — TCP connect on RTSP port
   3. Camera 2  — TCP connect on RTSP port + HTTP port
-  4. Snapshot, recordings, and events folders are writable
+  4. Snapshot, recordings, events, and data folders are writable
 
 Results are stored in a module-level dict so GET /api/health can return them
 without re-running the probes on every request.
@@ -155,8 +155,12 @@ async def run_all() -> dict:
     results["events_dir"] = events
     _log_probe("Events dir", events)
 
+    data_dir = _probe_writable_dir(settings.customer_portal_db_abs.parent, "*")
+    results["data_dir"] = data_dir
+    _log_probe("Data dir", data_dir)
+
     # --- Overall ---
-    critical_ok = ffmpeg["ok"] and rec["ok"] and snapshots["ok"] and events["ok"]
+    critical_ok = ffmpeg["ok"] and rec["ok"] and snapshots["ok"] and events["ok"] and data_dir["ok"]
     cameras_ok = cam1_rtsp["ok"] or cam2_rtsp["ok"]
     results["overall"] = "ok" if (critical_ok and cameras_ok) else (
         "degraded" if critical_ok else "error"

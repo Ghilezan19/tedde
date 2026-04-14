@@ -1,0 +1,506 @@
+/* Customer portal — light canvas, dark topbar (Mecanicii-inspired). System font stack (no external requests). */
+
+:root {
+  color-scheme: light;
+  --portal-canvas: #f3f4f6;
+  --portal-surface: #ffffff;
+  --portal-text: #111827;
+  --portal-muted: #6b7280;
+  --portal-border: #e5e7eb;
+  --portal-radius: 14px;
+  --portal-radius-sm: 12px;
+  --portal-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.04);
+  --portal-focus: #2563eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--portal-canvas);
+  color: var(--portal-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+.portal-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* ---- Top bar (dark) ---- */
+.portal-topbar {
+  background: var(--portal-dark);
+  color: #f9fafb;
+  border-bottom: 3px solid var(--portal-accent);
+  padding: 14px clamp(16px, 4vw, 28px);
+}
+
+.portal-topbar-inner {
+  max-width: 56rem;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  min-width: 0;
+  width: 100%;
+}
+
+.portal-brand-logo {
+  display: block;
+  height: clamp(36px, 7vw, 52px);
+  width: auto;
+  max-width: min(44vw, 200px);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.portal-topbar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.portal-topbar-brand {
+  font-weight: 800;
+  font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+  letter-spacing: 0.02em;
+}
+
+.portal-topbar-tag {
+  font-size: 0.8125rem;
+  color: rgba(249, 250, 251, 0.72);
+  font-weight: 500;
+}
+
+/* ---- Main column ---- */
+.portal-main {
+  flex: 1;
+  padding: clamp(20px, 4vw, 32px) 0 clamp(40px, 6vw, 56px);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.portal-inner {
+  width: 100%;
+  max-width: min(100%, 56rem);
+  margin: 0 auto;
+  padding: 0 clamp(12px, 5vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3vw, 22px);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ---- Intro / title ---- */
+.portal-intro {
+  text-align: center;
+  padding: clamp(8px, 2vw, 16px) 0 4px;
+}
+
+.portal-greeting {
+  margin: 0 0 6px;
+  font-size: 0.9375rem;
+  color: var(--portal-muted);
+}
+
+.portal-title {
+  margin: 0 0 12px;
+  font-size: clamp(1.65rem, 4.5vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--portal-text);
+  text-wrap: balance;
+}
+
+.portal-plate-line {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--portal-muted);
+}
+
+.portal-plate {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+  font-weight: 700;
+  font-size: clamp(1rem, 2.8vw, 1.2rem);
+  letter-spacing: 0.04em;
+  background: var(--portal-surface);
+  color: var(--portal-text);
+  border: 1px solid var(--portal-border);
+  border-left: 4px solid var(--portal-accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ---- Cards ---- */
+.portal-card {
+  background: var(--portal-surface);
+  color: var(--portal-text);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--portal-radius);
+  box-shadow: var(--portal-shadow);
+  padding: clamp(20px, 3.5vw, 26px);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.portal-info-card {
+  padding: clamp(18px, 3vw, 24px);
+}
+
+.portal-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(16px, 3vw, 22px);
+}
+
+@media (min-width: 640px) {
+  .portal-info-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .portal-info-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.portal-info-item .label,
+.label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--portal-muted);
+  margin-bottom: 6px;
+}
+
+.portal-info-item strong,
+.footer-value {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--portal-text);
+}
+
+.alert-card.error,
+.error-state {
+  border-left: 5px solid #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.section-header h2,
+.video-header h3,
+.error-state h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+  font-weight: 700;
+}
+
+.section-header p {
+  margin: 0;
+  color: var(--portal-muted);
+  font-size: 0.9375rem;
+}
+
+.error-state p {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.section-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--portal-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.section-kicker.success {
+  color: #15803d;
+}
+
+.quiz-form {
+  display: grid;
+  gap: clamp(18px, 3vw, 24px);
+  margin-top: 22px;
+}
+
+.question-block {
+  display: grid;
+  gap: 12px;
+}
+
+.question-block > label {
+  color: var(--portal-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.rating-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.rating-option {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--portal-border);
+  border-radius: var(--portal-radius-sm);
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.rating-option:hover {
+  border-color: #94a3b8;
+  background: var(--portal-surface);
+}
+
+.rating-option:focus-within {
+  outline: 2px solid var(--portal-focus);
+  outline-offset: 2px;
+}
+
+.rating-option input {
+  margin: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  accent-color: var(--portal-accent);
+}
+
+textarea {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--portal-radius-sm);
+  border: 1px solid var(--portal-border);
+  font: inherit;
+  resize: vertical;
+  min-height: 120px;
+  background: #fafafa;
+}
+
+textarea:focus-visible {
+  outline: 2px solid var(--portal-focus);
+  outline-offset: 2px;
+  border-color: transparent;
+}
+
+.primary-btn {
+  width: 100%;
+  border: 0;
+  border-radius: var(--portal-radius-sm);
+  padding: 16px 20px;
+  background: var(--portal-accent);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.primary-btn:hover {
+  filter: brightness(1.05);
+}
+
+.primary-btn:active {
+  transform: scale(0.99);
+}
+
+.primary-btn:focus-visible {
+  outline: 3px solid var(--portal-focus);
+  outline-offset: 3px;
+}
+
+@media (min-width: 480px) {
+  .primary-btn {
+    width: auto;
+    min-width: min(100%, 280px);
+    align-self: flex-start;
+  }
+}
+
+/* ---- Video grid (always stacked: Dedesubt above, Frontal below) ---- */
+.videos-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(18px, 4vw, 28px);
+  width: 100%;
+  max-width: min(100%, 64rem);
+  margin-inline: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.videos-grid--single,
+.videos-grid:has(figure.video-card:only-of-type) {
+  max-width: min(100%, 60rem);
+}
+
+.video-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.video-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+  min-width: 0;
+  column-gap: 10px;
+}
+
+.video-header h3 {
+  margin: 0;
+  font-size: clamp(0.95rem, 2.8vw, 1.125rem);
+  font-weight: 700;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.video-header span {
+  color: var(--portal-muted);
+  font-size: clamp(0.75rem, 3.5vw, 0.875rem);
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: right;
+  word-break: break-word;
+}
+
+/*
+ * Mobile: do NOT mix large min-height with aspect-ratio — browsers can grow width past the viewport.
+ * Use width-bound aspect box only; add min-height from md+.
+ */
+.video-stage {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  border-radius: var(--portal-radius-sm);
+  background: #0a0a0a;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.video-stage video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+@media (min-width: 768px) {
+  .video-stage {
+    min-height: min(52svh, 640px);
+    max-height: min(85svh, 900px);
+  }
+
+  .videos-grid--multi .video-stage,
+  .videos-grid:has(figure.video-card ~ figure.video-card) .video-stage {
+    min-height: min(36svh, 400px);
+    max-height: min(70svh, 720px);
+  }
+}
+
+@media (min-width: 1200px) {
+  .video-stage {
+    min-height: min(48svh, 560px);
+  }
+
+  .videos-grid--multi .video-stage,
+  .videos-grid:has(figure.video-card ~ figure.video-card) .video-stage {
+    min-height: min(38svh, 480px);
+  }
+}
+
+/* ---- Footer ---- */
+.portal-footer {
+  margin-top: auto;
+  background: var(--portal-dark);
+  color: rgba(249, 250, 251, 0.88);
+  padding: clamp(22px, 4vw, 32px) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.portal-footer-inner {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(18px, 3vw, 22px);
+}
+
+@media (min-width: 640px) {
+  .portal-footer-inner {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .portal-footer-inner {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.portal-footer .label {
+  color: rgba(249, 250, 251, 0.55);
+}
+
+.footer-value {
+  color: #f9fafb;
+}
+
+.footer-value-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  word-break: break-word;
+}
+
+.footer-value-link:hover {
+  text-decoration: underline;
+  opacity: 0.92;
+}

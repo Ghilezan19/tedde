@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tedde — Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f1a; --card: #1a1a2e; --border: #2d2d4e;
+      --accent: #e94560; --text: #e2e8f0; --muted: #64748b;
+      --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+      --input-bg: #0f0f1a;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .topbar { background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.5rem; position: sticky; top: 0; z-index: 100; }
+    .topbar h1 { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+    .topbar-links { display: flex; gap: 1rem; font-size: 0.82rem; align-items: center; }
+    .topbar-links a { color: var(--muted); text-decoration: none; }
+    .topbar-links a:hover { color: var(--text); }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+    .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.4rem; }
+    .section-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; }
+    .stat-box { background: #13131f; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; }
+    .stat-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.2rem; }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.ok { color: var(--success); }
+
+    /* Filters toolbar */
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .filter-btn { padding: 0.35rem 0.75rem; border-radius: 20px; border: 1px solid var(--border); background: var(--input-bg); color: var(--muted); font-size: 0.8rem; cursor: pointer; transition: all 0.15s; }
+    .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+
+    .search-input { background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.4rem 0.7rem; font-size: 0.85rem; outline: none; width: 200px; }
+    .search-input:focus { border-color: var(--accent); }
+
+    select.days-select { background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.4rem 0.6rem; font-size: 0.82rem; outline: none; cursor: pointer; }
+    select.days-select:focus { border-color: var(--accent); }
+
+    /* Vehicle cards */
+    .vehicles-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .vehicle-card { background: #13131f; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .vehicle-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem; cursor: pointer; user-select: none; }
+    .vehicle-header:hover { background: rgba(255,255,255,0.02); }
+
+    .plate { font-family: monospace; font-weight: 700; font-size: 1rem; letter-spacing: 0.04em; min-width: 95px; }
+    .owner { flex: 1; font-size: 0.88rem; }
+    .mechanic { font-size: 0.78rem; color: var(--muted); }
+    .time-info { font-size: 0.75rem; color: var(--muted); text-align: right; min-width: 80px; }
+
+    .badge { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.18rem 0.5rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+    .badge-ok { background: rgba(34,197,94,0.15); color: var(--success); }
+    .badge-err { background: rgba(100,116,139,0.12); color: var(--muted); }
+    .badge-warn { background: rgba(245,158,11,0.15); color: var(--warning); }
+
+    .vehicle-body { display: none; border-top: 1px solid var(--border); padding: 0.85rem 1rem; }
+    .vehicle-body.open { display: block; }
+
+    .vehicle-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.6rem; margin-bottom: 0.75rem; font-size: 0.83rem; }
+    .detail-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .detail-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .feedback-box { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 0.75rem; margin: 0.5rem 0; }
+    .feedback-title { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .stars { color: var(--warning); font-size: 0.9rem; letter-spacing: 0.05em; }
+    .feedback-text { font-size: 0.85rem; color: var(--text); margin-top: 0.35rem; font-style: italic; }
+
+    .vehicle-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+    .btn { padding: 0.4rem 0.85rem; border-radius: 6px; border: none; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; text-decoration: none; display: inline-flex; align-items: center; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #2d2d4e; color: var(--text); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; }
+
+    /* Pagination */
+    .pagination { display: flex; gap: 0.4rem; align-items: center; justify-content: center; margin-top: 1rem; }
+    .page-btn { padding: 0.35rem 0.7rem; border-radius: 5px; border: 1px solid var(--border); background: var(--input-bg); color: var(--muted); font-size: 0.82rem; cursor: pointer; }
+    .page-btn:hover { border-color: var(--accent); color: var(--text); }
+    .page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .page-btn:disabled { opacity: 0.4; cursor: default; }
+
+    .empty-state { text-align: center; padding: 2.5rem; color: var(--muted); font-size: 0.88rem; }
+
+    .inline-msg { font-size: 0.78rem; margin-left: 0.4rem; }
+    .inline-msg.ok { color: var(--success); }
+    .inline-msg.err { color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>👔 Admin</h1>
+  <div class="topbar-links">
+    <a href="/super-admin">Super-Admin</a>
+    <a href="/configure">Configure</a>
+    <a href="/">Dashboard</a>
+    <a href="/logout" style="color:var(--danger);">Logout</a>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── Sumar zilnic ─────────────────────────────── -->
+  <div class="section-card">
+    <div class="section-title">📊 Sumar — azi</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-label">Vehicule azi</div>
+        <div class="stat-value" id="stat-today-events">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">SMS trimise azi</div>
+        <div class="stat-value ok" id="stat-sms-today">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Feedback primit azi</div>
+        <div class="stat-value" id="stat-feedback-today">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Rating mediu</div>
+        <div class="stat-value accent" id="stat-avg-rating">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Tokeni rămași</div>
+        <div class="stat-value" id="stat-tokens">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Lista vehicule ───────────────────────────── -->
+  <div class="section-card">
+    <div class="section-title">🚗 Vehicule</div>
+
+    <div class="toolbar">
+      <button class="filter-btn active" data-filter="all">Toate</button>
+      <button class="filter-btn" data-filter="sms_pending">SMS netrimis</button>
+      <button class="filter-btn" data-filter="sms_sent">SMS trimis</button>
+      <button class="filter-btn" data-filter="feedback">Cu feedback</button>
+      <button class="filter-btn" data-filter="no_feedback">Fără feedback</button>
+
+      <select class="days-select" id="days-select" onchange="reloadVehicles()">
+        <option value="1">Azi</option>
+        <option value="7" selected>7 zile</option>
+        <option value="30">30 zile</option>
+        <option value="90">90 zile</option>
+      </select>
+
+      <input type="text" class="search-input" id="search-input"
+             placeholder="Caută nr. sau proprietar..."
+             oninput="debounceSearch()">
+    </div>
+
+    <div class="vehicles-list" id="vehicles-list">
+      <div class="empty-state">Se încarcă...</div>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</div>
+
+<script>
+let currentFilter = 'all';
+let currentPage = 1;
+let searchTimer = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadStats();
+  loadVehicles();
+});
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    currentPage = 1;
+    loadVehicles();
+  });
+});
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentPage = 1;
+    loadVehicles();
+  }, 350);
+}
+
+function reloadVehicles() {
+  currentPage = 1;
+  loadVehicles();
+}
+
+// ── Stats ─────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const r = await fetch('/api/admin/stats');
+    const d = await r.json();
+    document.getElementById('stat-today-events').textContent = d.today_events;
+    document.getElementById('stat-sms-today').textContent = d.sms_sent_today;
+    document.getElementById('stat-feedback-today').textContent = d.feedback_today;
+    document.getElementById('stat-avg-rating').textContent = d.avg_rating ? '★ ' + d.avg_rating : '—';
+    document.getElementById('stat-tokens').textContent = d.tokens_remaining;
+  } catch(e) { console.error('loadStats:', e); }
+}
+
+// ── Vehicles ──────────────────────────────────────────
+async function loadVehicles() {
+  const list = document.getElementById('vehicles-list');
+  const search = document.getElementById('search-input').value.trim();
+  const days = document.getElementById('days-select').value;
+
+  list.innerHTML = '<div class="empty-state">Se încarcă...</div>';
+
+  try {
+    const params = new URLSearchParams({
+      filter: currentFilter,
+      days,
+      search,
+      page: currentPage,
+      page_size: 25,
+    });
+    const r = await fetch('/api/admin/vehicles?' + params);
+    const d = await r.json();
+
+    if (!d.vehicles || !d.vehicles.length) {
+      list.innerHTML = '<div class="empty-state">Niciun vehicul găsit pentru filtrele selectate.</div>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    list.innerHTML = d.vehicles.map(v => renderVehicleCard(v)).join('');
+    renderPagination(d.page, d.pages);
+  } catch(e) {
+    list.innerHTML = `<div class="empty-state" style="color:var(--danger)">Eroare la încărcare: ${e.message}</div>`;
+  }
+}
+
+function renderVehicleCard(v) {
+  const date = formatDate(v.created_at);
+  const time = formatTime(v.created_at);
+  const smsClass = v.sms_sent ? 'badge-ok' : 'badge-err';
+  const smsLabel = v.sms_sent ? '✓ SMS trimis' : '✗ SMS netrimis';
+  const fbClass = v.has_feedback ? 'badge-ok' : 'badge-err';
+  const fbLabel = v.has_feedback ? '✓ Feedback' : '✗ Fără feedback';
+
+  const feedbackBlock = v.has_feedback ? `
+    <div class="feedback-box">
+      <div class="feedback-title">Răspuns chestionar</div>
+      <div style="display:flex;gap:1.25rem;font-size:0.83rem;">
+        <div><span style="color:var(--muted);">Experiență:</span> <span class="stars">${'★'.repeat(v.rating_overall)}${'☆'.repeat(5 - v.rating_overall)}</span></div>
+        <div><span style="color:var(--muted);">Explicație:</span> <span class="stars">${'★'.repeat(v.rating_explanation)}${'☆'.repeat(5 - v.rating_explanation)}</span></div>
+      </div>
+      ${v.free_text ? `<div class="feedback-text">"${v.free_text}"</div>` : ''}
+    </div>
+  ` : '';
+
+  const smsActionBtn = v.sms_sent
+    ? `<button class="btn btn-secondary btn-sm" onclick="resendSms(${v.id}, this)">🔄 Re-trimite SMS</button>`
+    : `<button class="btn btn-primary btn-sm" onclick="resendSms(${v.id}, this)">📱 Trimite SMS</button>`;
+
+  return `
+    <div class="vehicle-card" id="vcard-${v.id}">
+      <div class="vehicle-header" onclick="toggleCard(${v.id})">
+        <span class="plate">${v.license_plate}</span>
+        <div style="flex:1;">
+          <div class="owner">${v.owner_name}</div>
+          <div class="mechanic">Mecanic: ${v.mechanic_name}</div>
+        </div>
+        <div style="display:flex;gap:0.4rem;align-items:center;">
+          <span class="badge ${smsClass}">${smsLabel}</span>
+          <span class="badge ${fbClass}">${fbLabel}</span>
+        </div>
+        <div class="time-info">
+          <div>${date}</div>
+          <div>${time}</div>
+        </div>
+      </div>
+      <div class="vehicle-body" id="vbody-${v.id}">
+        <div class="vehicle-details">
+          <div class="detail-item">
+            <span class="detail-label">Proprietar</span>
+            <span>${v.owner_name}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Telefon</span>
+            <span>${v.phone_number_masked}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Mecanic</span>
+            <span>${v.mechanic_name}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Status SMS</span>
+            <span class="badge ${smsClass}">${v.sms_status}</span>
+          </div>
+          ${v.sent_at ? `<div class="detail-item"><span class="detail-label">Trimis la</span><span>${formatFull(v.sent_at)}</span></div>` : ''}
+        </div>
+
+        ${feedbackBlock}
+
+        <div class="vehicle-actions">
+          ${smsActionBtn}
+          <span id="sms-msg-${v.id}" class="inline-msg"></span>
+          ${v.public_url ? `<a class="btn btn-secondary btn-sm" href="${v.public_url}" target="_blank">🔗 Deschide portal</a>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleCard(id) {
+  const body = document.getElementById('vbody-' + id);
+  body.classList.toggle('open');
+}
+
+async function resendSms(linkId, btn) {
+  const msg = document.getElementById('sms-msg-' + linkId);
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch(`/api/customer-links/${linkId}/resend`, {method: 'POST'});
+    const d = await r.json();
+    if (d.ok || d.status) {
+      msg.textContent = '✓ Trimis';
+      msg.className = 'inline-msg ok';
+    } else {
+      msg.textContent = '✗ ' + (d.detail || 'Eroare');
+      msg.className = 'inline-msg err';
+    }
+  } catch(e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.className = 'inline-msg err';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 Re-trimite SMS';
+  }
+  await loadStats();
+}
+
+// ── Pagination ────────────────────────────────────────
+function renderPagination(page, pages) {
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${page-1})" ${page <= 1 ? 'disabled' : ''}>‹</button>`;
+  for (let i = 1; i <= pages; i++) {
+    if (pages > 7 && Math.abs(i - page) > 2 && i !== 1 && i !== pages) {
+      if (i === 2 || i === pages - 1) html += '<span style="color:var(--muted);padding:0 0.25rem;">…</span>';
+      continue;
+    }
+    html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button class="page-btn" onclick="goPage(${page+1})" ${page >= pages ? 'disabled' : ''}>›</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  currentPage = p;
+  loadVehicles();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// ── Helpers ───────────────────────────────────────────
+function formatDate(iso) {
+  try { return new Date(iso).toLocaleDateString('ro-RO'); } catch { return iso; }
+}
+function formatTime(iso) {
+  try { return new Date(iso).toLocaleTimeString('ro-RO', {hour:'2-digit', minute:'2-digit'}); } catch { return ''; }
+}
+function formatFull(iso) {
+  try { return new Date(iso).toLocaleString('ro-RO'); } catch { return iso; }
+}
+</script>
+</body>
+</html>

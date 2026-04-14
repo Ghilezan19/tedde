@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ brand_name }} - Portal client</title>
+  <link rel="icon" href="{{ logo_url }}" type="image/png" sizes="any">
+  <link rel="apple-touch-icon" href="{{ logo_url }}">
+  <link rel="stylesheet" href="/public/customer-portal.css">
+  <style>
+    :root {
+      --portal-accent: {{ theme_accent }};
+      --portal-dark: {{ theme_dark }};
+    }
+  </style>
+</head>
+<body>
+  <div class="portal-shell">
+    <header class="portal-topbar">
+      <div class="portal-topbar-inner">
+        <img class="portal-brand-logo" src="{{ logo_url }}" width="200" height="52" alt="">
+        <div class="portal-topbar-text">
+          <span class="portal-topbar-brand">{{ brand_name }}</span>
+          <span class="portal-topbar-tag">{{ brand_subtitle }}</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="portal-main">
+      <div class="portal-inner">
+        <section class="portal-card error-state" role="alert">
+          <h2>{{ title }}</h2>
+          <p>{{ message }}</p>
+        </section>
+      </div>
+    </main>
+
+    <footer class="portal-footer">
+      <div class="portal-inner portal-footer-inner">
+        <div class="portal-footer-block">
+          <span class="label">Adresă</span>
+          {% if footer_address %}
+          <strong class="footer-value">{{ footer_address }}</strong>
+          {% else %}
+          <strong class="footer-value">—</strong>
+          {% endif %}
+        </div>
+        <div class="portal-footer-block">
+          <span class="label">Telefon</span>
+          {% if footer_phone|trim %}
+          <a class="footer-value-link" href="tel:{{ footer_phone | replace(' ', '') | replace('-', '') }}">{{ footer_phone }}</a>
+          {% else %}
+          <strong class="footer-value">—</strong>
+          {% endif %}
+        </div>
+        <div class="portal-footer-block">
+          <span class="label">Email</span>
+          {% if footer_email|trim %}
+          <a class="footer-value-link" href="mailto:{{ footer_email|trim }}">{{ footer_email }}</a>
+          {% else %}
+          <strong class="footer-value">—</strong>
+          {% endif %}
+        </div>
+        <div class="portal-footer-block">
+          <span class="label">Program</span>
+          <strong class="footer-value">{{ footer_hours }}</strong>
+        </div>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

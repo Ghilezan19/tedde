@@ -4,13 +4,37 @@ No hard-coded values anywhere else in the codebase; import `settings` instead.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Allow running the backend from either the repo root or the py_backend/ folder.
 _ENV_FILE = Path(__file__).parent.parent / ".env"
+
+# Hub `open-image-models` — must match PlateDetectorModel in that package.
+AlprPlateDetectorModel = Literal[
+    "yolo-v9-s-608-license-plate-end2end",
+    "yolo-v9-t-640-license-plate-end2end",
+    "yolo-v9-t-512-license-plate-end2end",
+    "yolo-v9-t-416-license-plate-end2end",
+    "yolo-v9-t-384-license-plate-end2end",
+    "yolo-v9-t-256-license-plate-end2end",
+]
+
+# Hub `fast-plate-ocr` ONNX names (subset used with fast_alpr).
+AlprOcrModel = Literal[
+    "cct-s-v2-global-model",
+    "cct-xs-v2-global-model",
+    "cct-s-v1-global-model",
+    "cct-xs-v1-global-model",
+    "cct-s-relu-v1-global-model",
+    "cct-xs-relu-v1-global-model",
+    "argentinian-plates-cnn-model",
+    "argentinian-plates-cnn-synth-model",
+    "european-plates-mobile-vit-v2-model",
+    "global-plates-mobile-vit-v2-model",
+]
 
 
 class Settings(BaseSettings):
@@ -32,6 +56,7 @@ class Settings(BaseSettings):
     recordings_dir: Path = Field(default=Path("./recordings"))
     snapshot_dir: Path = Field(default=Path("./snapshots"))
     events_dir: Path = Field(default=Path("./events"))
+    customer_portal_db_path: Path = Field(default=Path("./data/customer_portal.sqlite3"))
 
     # ffmpeg binary
     ffmpeg_path: str = Field(default="/opt/homebrew/bin/ffmpeg")
@@ -43,6 +68,10 @@ class Settings(BaseSettings):
     camera_username: str = Field(default="admin")
     camera_password: str = Field(default="")
     camera_rtsp_port: int = Field(default=554)
+    camera1_http_port: int = Field(
+        default=80,
+        description="HTTP port for Camera 1 ISAPI (TwoWayAudio when AUDIO_ISAPI_CAMERA=1).",
+    )
     rtsp_main_path: str = Field(default="/Streaming/channels/101")
     rtsp_sub_path: str = Field(default="/Streaming/channels/102")
 
@@ -72,6 +101,14 @@ class Settings(BaseSettings):
         default=None,
         description="Optional LCD countdown; defaults to recording_duration_seconds when unset.",
     )
+    esp_device_ip: Optional[str] = Field(
+        default=None,
+        description="Optional: last known ESP32 LAN IP (manual); shown on /help-esp1.",
+    )
+    esp_help_note: str = Field(
+        default="",
+        description="Optional label/note for /help-esp1 (e.g. location).",
+    )
 
     workflow_record_stream: str = Field(
         default="main",
@@ -100,6 +137,13 @@ class Settings(BaseSettings):
     tts_start_message: str = Field(default="Inregistrarea a inceput")
     tts_end_message: str = Field(default="Inregistrarea s-a finalizat cu succes")
     tts_volume: int = Field(default=100, ge=0, le=100)
+
+    audio_isapi_camera: int = Field(
+        default=2,
+        ge=1,
+        le=2,
+        description="Which camera receives ISAPI TwoWayAudio / live talk / TTS (1=fixed, 2=PTZ).",
+    )
 
     # ------------------------------------------------------------------ #
     # ALPR / events
@@ -135,6 +179,72 @@ class Settings(BaseSettings):
         ge=1.05,
         le=2.5,
         description="Factor mărire pentru retry-ul ALPR (doar în RAM, nu schimbă fișierul snapshot).",
+    )
+    alpr_detector_model: AlprPlateDetectorModel = Field(
+        default="yolo-v9-t-384-license-plate-end2end",
+        description="ONNX plate detector from open-image-models hub (see fast_alpr detector_model).",
+    )
+    alpr_ocr_model: AlprOcrModel = Field(
+        default="cct-xs-v2-global-model",
+        description="OCR model name from fast-plate-ocr hub (see fast_alpr ocr_model).",
+    )
+
+    # ------------------------------------------------------------------ #
+    # Admin dashboards auth
+    # ------------------------------------------------------------------ #
+    admin_password: str = Field(
+        default="admin",
+        description="Password for the /admin dashboard.",
+    )
+    superadmin_password: str = Field(
+        default="DentaTimis02",
+        description="Password for the /super-admin dashboard.",
+    )
+    session_secret_key: str = Field(
+        default="change-me-in-production-use-a-random-secret",
+        description="Secret key used to sign session cookies (itsdangerous).",
+    )
+
+    # ------------------------------------------------------------------ #
+    # Customer portal / SMS
+    # ------------------------------------------------------------------ #
+    public_base_url: str = Field(
+        default="http://localhost:8000",
+        description="Base URL used when generating customer-facing share links.",
+    )
+    portal_path_prefix: str = Field(
+        default="/verificare",
+        description="Path prefix for the public customer portal.",
+    )
+    customer_link_ttl_days: int = Field(
+        default=30,
+        ge=1,
+        description="Number of days before a customer link expires.",
+    )
+    sms_backend: Literal["mock", "custom_http"] = Field(
+        default="mock",
+        description="SMS backend used when sending customer share links.",
+    )
+    sms_http_url: str = Field(default="")
+    sms_http_method: str = Field(default="POST")
+    sms_http_headers_json: str = Field(default="{}")
+    sms_http_body_template: str = Field(default="")
+    portal_brand_name: str = Field(default="TEDDE AUTO")
+    portal_footer_phone: str = Field(default="0744 658 650")
+    portal_footer_email: str = Field(default="office@tedde-auto.ro")
+    portal_footer_address: str = Field(default="Satchinez, str. Daliei, nr. 27, jud. Timis")
+    portal_footer_hours: str = Field(
+        default="Luni - Vineri: 08:30 - 17:00 / Sambata: 08:30 - 13:00 / Duminica: Inchis"
+    )
+    portal_theme_accent: str = Field(default="#59c7e8")
+    portal_theme_dark: str = Field(default="#2f2f2f")
+    portal_logo_url: str = Field(
+        default="/public/logo.png",
+        description="URL path (under app mount) for customer portal header logo.",
+    )
+    portal_bumper_video_url: str = Field(
+        default="/public/intro-outro.mp4",
+        description="Intro/outro clip URL; played before and after each camera recording in the portal.",
     )
 
     # ------------------------------------------------------------------ #
@@ -179,8 +289,31 @@ class Settings(BaseSettings):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
+    def customer_portal_db_abs(self) -> Path:
+        base = Path(__file__).parent.parent
+        return (base / self.customer_portal_db_path).resolve()
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
     def public_dir_abs(self) -> Path:
         return (Path(__file__).parent.parent / "public").resolve()
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def templates_dir_abs(self) -> Path:
+        return (Path(__file__).parent.parent / "py_backend" / "templates").resolve()
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def portal_path_prefix_normalized(self) -> str:
+        prefix = (self.portal_path_prefix or "/verificare").strip()
+        if not prefix:
+            return "/verificare"
+        if not prefix.startswith("/"):
+            prefix = f"/{prefix}"
+        if prefix != "/":
+            prefix = prefix.rstrip("/")
+        return prefix
 
 
 # Singleton — import this everywhere
@@ -190,3 +323,4 @@ settings = Settings()
 settings.recordings_dir_abs.mkdir(parents=True, exist_ok=True)
 settings.snapshot_dir_abs.mkdir(parents=True, exist_ok=True)
 settings.events_dir_abs.mkdir(parents=True, exist_ok=True)
+settings.customer_portal_db_abs.parent.mkdir(parents=True, exist_ok=True)

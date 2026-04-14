@@ -17,6 +17,34 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+# After sending "q" to ffmpeg stdin, muxing moov (+faststart) can take longer than a few seconds.
+_FFMPEG_Q_WAIT_SEC = 90.0
+_FFMPEG_TERM_WAIT_SEC = 15.0
+
+# MP4 smaller than this after stop is treated as failed capture (truncated header / empty).
+MIN_WORKFLOW_MP4_BYTES = 8192
+
+
+def workflow_output_status(
+    event_dir: Path, *, expected_cameras: tuple[int, ...] = (1, 2)
+) -> tuple[dict[str, bool], list[str]]:
+    """Which camera files are usable; Romanian warnings for operator/portal."""
+    out: dict[str, bool] = {}
+    warnings: list[str] = []
+    for cam in expected_cameras:
+        key = f"camera{cam}"
+        path = event_dir / f"{key}.mp4"
+        if path.is_file():
+            sz = path.stat().st_size
+            ok = sz >= MIN_WORKFLOW_MP4_BYTES
+            out[key] = ok
+            if not ok:
+                warnings.append(f"Camera {cam}: fișier prea mic sau gol ({sz} B).")
+        else:
+            out[key] = False
+            warnings.append(f"Camera {cam}: fișier lipsă sau înregistrare eșuată.")
+    return out, warnings
+
 
 @dataclass
 class RecordingMeta:
@@ -40,6 +68,8 @@ class WorkflowSession:
     duration_seconds: int
     event_dir: Path
     recordings: dict[int, _RecordingProcess]
+    planned_cameras: list[int] = field(default_factory=list)
+    spawn_failed_cameras: list[int] = field(default_factory=list)
 
 
 class RecordingManager:
@@ -118,19 +148,24 @@ class RecordingManager:
 
             event_dir.mkdir(parents=True, exist_ok=True)
             recordings: dict[int, _RecordingProcess] = {}
-            try:
-                for camera in cameras:
-                    filepath = event_dir / f"camera{camera}.mp4"
+            spawn_failed: list[int] = []
+            for camera in cameras:
+                filepath = event_dir / f"camera{camera}.mp4"
+                try:
                     recordings[camera] = await self._spawn_recording(
                         filepath=filepath,
                         camera=camera,
                         stream=stream,
                     )
-            except Exception:
-                for rec in recordings.values():
+                except Exception:
+                    logger.exception("[RECORD] Failed to start ffmpeg for camera %s", camera)
+                    spawn_failed.append(camera)
                     with contextlib.suppress(Exception):
-                        await self._stop_recording(rec)
-                raise
+                        if filepath.exists():
+                            filepath.unlink()
+
+            if not recordings:
+                raise RuntimeError("No camera recording could be started (all cameras failed).")
 
             self._workflow = WorkflowSession(
                 session_id=session_id,
@@ -138,6 +173,8 @@ class RecordingManager:
                 duration_seconds=duration,
                 event_dir=event_dir,
                 recordings=recordings,
+                planned_cameras=list(cameras),
+                spawn_failed_cameras=spawn_failed,
             )
             logger.info("[RECORD] Workflow started: %s", session_id)
             return self._workflow
@@ -158,19 +195,25 @@ class RecordingManager:
         if self._workflow is None:
             return {"recording": False}
         elapsed = int((datetime.now(timezone.utc) - self._workflow.started_at).total_seconds())
+        wf = self._workflow
         return {
             "recording": True,
-            "sessionId": self._workflow.session_id,
-            "startedAt": self._workflow.started_at.isoformat(),
-            "durationSeconds": self._workflow.duration_seconds,
+            "sessionId": wf.session_id,
+            "startedAt": wf.started_at.isoformat(),
+            "durationSeconds": wf.duration_seconds,
             "elapsedSeconds": elapsed,
-            "eventDir": str(self._workflow.event_dir),
-            "cameras": sorted(self._workflow.recordings.keys()),
+            "eventDir": str(wf.event_dir),
+            "cameras": sorted(wf.recordings.keys()),
+            "plannedCameras": list(wf.planned_cameras),
+            "spawnFailedCameras": list(wf.spawn_failed_cameras),
         }
 
     def update_workflow_event_dir(self, event_dir: Path) -> None:
+        """Keep per-camera paths in sync after temp dir rename (otherwise stat/stop order breaks)."""
         if self._workflow is not None:
             self._workflow.event_dir = event_dir
+            for rec in self._workflow.recordings.values():
+                rec.meta.filepath = event_dir / rec.meta.filename
 
     def workflow_active(self) -> bool:
         return self._workflow is not None
@@ -227,11 +270,11 @@ class RecordingManager:
             pass
 
         try:
-            await asyncio.wait_for(rec.process.wait(), timeout=5.0)
+            await asyncio.wait_for(rec.process.wait(), timeout=_FFMPEG_Q_WAIT_SEC)
         except asyncio.TimeoutError:
             rec.process.terminate()
             try:
-                await asyncio.wait_for(rec.process.wait(), timeout=3.0)
+                await asyncio.wait_for(rec.process.wait(), timeout=_FFMPEG_TERM_WAIT_SEC)
             except asyncio.TimeoutError:
                 rec.process.kill()
                 with contextlib.suppress(Exception):

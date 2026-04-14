@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HiLook Camera Control</title>
+  <link rel="icon" href="/public/logo.png" type="image/png" sizes="any">
+  <link rel="apple-touch-icon" href="/public/logo.png">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -284,6 +286,39 @@
     .tab-btn:hover:not(.active) { color: #94a3b8; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
+
+    .portal-test-countdown {
+      font-size: 38px;
+      font-weight: 800;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      color: #fbbf24;
+      margin: 10px 0 6px;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+    }
+    .portal-test-sub {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+    .portal-test-banner {
+      display: none;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 2px solid #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+      color: #fde68a;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .portal-test-banner.visible { display: block; }
+    .portal-test-banner strong { color: #fcd34d; }
+    .portal-test-videos { display: grid; gap: 10px; margin-top: 10px; }
+    .portal-test-videos video { width: 100%; max-height: 200px; border-radius: 8px; background: #000; }
+    .portal-test-sms-pre { font-size: 12px; color: #cbd5e1; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px; white-space: pre-wrap; word-break: break-word; margin-top: 8px; max-height: 180px; overflow: auto; }
 
     /* ---- Setting Group ---- */
     .setting-group { margin-bottom: 14px; }
@@ -702,6 +737,7 @@
           <button class="tab-btn" onclick="showTab('audio')"  id="tab-audio-btn">🔊 Audio</button>
           <button class="tab-btn" onclick="showTab('image')"  id="tab-image-btn">🌈 Imagine</button>
           <button class="tab-btn" onclick="showTab('info')"   id="tab-info-btn">ℹ️ Info</button>
+          <button class="tab-btn" onclick="showTab('portaltest')" id="tab-portaltest-btn">🔗 Test</button>
         </div>
 
         <!-- ===== TAB: STREAM ===== -->
@@ -968,6 +1004,52 @@
 
         </div>
 
+        <!-- ===== TAB: PORTAL / WORKFLOW TEST ===== -->
+        <div class="tab-panel" id="tab-portaltest">
+          <p class="section-label">Test constatare + link client</p>
+          <p style="font-size:12px; color:#64748b; margin-bottom:12px; line-height:1.55">
+            Pornește workflow-ul (înregistrare + ALPR), vezi countdown, previzualizează clipurile salvate, apoi creează linkul portal și (opțional) mesajul SMS.
+          </p>
+
+          <div class="setting-group">
+            <label>Durată înregistrare (secunde)</label>
+            <input type="number" id="portalTestDuration" min="5" max="600" value="60" step="1">
+          </div>
+          <button type="button" class="btn btn-primary" id="portalTestStartBtn" onclick="portalTestStartWorkflow()" style="width:100%; justify-content:center; margin-bottom:8px">▶ Pornește înregistrarea</button>
+
+          <div class="portal-test-countdown" id="portalTestCountdown">—</div>
+          <div class="portal-test-sub" id="portalTestCountdownLabel">Timp rămas (workflow activ)</div>
+          <div id="portalTestStatusMsg" style="font-size:13px; min-height:1.3em; margin-bottom:8px; color:#94a3b8"></div>
+
+          <div class="portal-test-banner" id="portalTestWarnBanner"><strong>Atenție</strong><div id="portalTestWarnText"></div></div>
+
+          <div id="portalTestResultMeta" style="font-size:12px; color:#94a3b8; margin-bottom:8px"></div>
+          <div class="portal-test-videos" id="portalTestVideos"></div>
+
+          <hr class="divider">
+          <p class="section-label">Trimite link client</p>
+          <div class="setting-group">
+            <label>Proprietar</label>
+            <input type="text" id="portalTestOwner" placeholder="Nume proprietar" value="Test Owner">
+          </div>
+          <div class="setting-group">
+            <label>Mecanic</label>
+            <input type="text" id="portalTestMechanic" placeholder="Nume mecanic" value="Test Mechanic">
+          </div>
+          <div class="setting-group">
+            <label>Telefon (SMS)</label>
+            <input type="text" id="portalTestPhone" placeholder="+40..." value="+00000000000">
+          </div>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#cbd5e1; margin-bottom:10px; cursor:pointer">
+            <input type="checkbox" id="portalTestSendSms" checked>
+            Trimite SMS (mock dacă SMS_BACKEND=mock în .env)
+          </label>
+          <button type="button" class="btn btn-success" id="portalTestSendBtn" onclick="portalTestSendLink()" style="width:100%; justify-content:center">📤 Trimite link</button>
+
+          <div id="portalTestSendOut" style="margin-top:14px; font-size:13px; color:#e2e8f0"></div>
+          <div class="portal-test-sms-pre" id="portalTestSmsPre" style="display:none"></div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -999,8 +1081,12 @@ let micStream     = null;
 let micCtx        = null;
 let micAnalyser   = null;
 let micLevelInt   = null;
+/** Deduplicare: același POST /api/audio/open nu se lansează în paralel (evită zeci de încercări la dublu-clic). */
+let audioOpenInFlight = null;
 let workflowActive = false;
 let workflowSignature = "";
+let portalTestPollInt = null;
+let portalTestLastEvent = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -1100,6 +1186,7 @@ function renderWorkflowSummary(run) {
 
 // ---- Tab switching ----
 function showTab(name) {
+  if (name !== "portaltest") stopPortalTestPoll();
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
   document.getElementById("tab-" + name).classList.add("active");
@@ -1110,6 +1197,243 @@ function showTab(name) {
   if (name === "alpr") {
     const sel = document.getElementById("alprCameraSelect");
     if (sel) sel.value = String(currentCamera);
+  }
+  if (name === "portaltest") { portalTestOnTabShown(); }
+}
+
+function stopPortalTestPoll() {
+  if (portalTestPollInt) {
+    clearInterval(portalTestPollInt);
+    portalTestPollInt = null;
+  }
+}
+
+async function portalTestOnTabShown() {
+  try {
+    const r = await fetch("/api/esp/config");
+    const d = await r.json();
+    const el = document.getElementById("portalTestDuration");
+    if (el && d && typeof d.recording_duration_seconds === "number") {
+      el.value = String(d.recording_duration_seconds);
+    }
+  } catch (_) { /* keep default */ }
+  await portalTestRefreshStatusOnce();
+}
+
+async function portalTestRefreshStatusOnce() {
+  const cd = document.getElementById("portalTestCountdown");
+  const sub = document.getElementById("portalTestCountdownLabel");
+  const msg = document.getElementById("portalTestStatusMsg");
+  if (!cd || !msg) return;
+  try {
+    const r = await fetch("/api/workflow/status");
+    const data = await r.json();
+    if (data.busy) {
+      const rem = data.remaining_seconds != null ? data.remaining_seconds : 0;
+      cd.textContent = formatClock(rem);
+      sub.textContent = "Timp rămas (workflow activ)";
+      msg.textContent = "Se înregistrează…";
+      msg.style.color = "#fde047";
+      if (!portalTestPollInt) {
+        portalTestPollInt = setInterval(portalTestRefreshStatusOnce, 1000);
+      }
+      return;
+    }
+    stopPortalTestPoll();
+    sub.textContent = "Ultimul workflow (server)";
+    const le = data.last_event;
+    if (le && (le.event_folder || le.event_id)) {
+      portalTestLastEvent = le;
+      cd.textContent = formatClock(0);
+      msg.textContent = "Workflow oprit. Poți trimite linkul mai jos.";
+      msg.style.color = "#86efac";
+      portalTestRenderLastEvent(le);
+    } else {
+      cd.textContent = "—";
+      msg.textContent = "Niciun workflow finalizat pe acest proces încă.";
+      msg.style.color = "#64748b";
+      portalTestLastEvent = null;
+      portalTestClearPreview();
+    }
+  } catch (e) {
+    msg.textContent = e && e.message ? e.message : String(e);
+    msg.style.color = "#fca5a5";
+  }
+}
+
+function portalTestClearPreview() {
+  const b = document.getElementById("portalTestWarnBanner");
+  const t = document.getElementById("portalTestWarnText");
+  const m = document.getElementById("portalTestResultMeta");
+  const v = document.getElementById("portalTestVideos");
+  if (b) b.classList.remove("visible");
+  if (t) t.textContent = "";
+  if (m) m.textContent = "";
+  if (v) v.innerHTML = "";
+}
+
+function portalTestRenderLastEvent(le) {
+  const b = document.getElementById("portalTestWarnBanner");
+  const t = document.getElementById("portalTestWarnText");
+  const m = document.getElementById("portalTestResultMeta");
+  const v = document.getElementById("portalTestVideos");
+  if (!m || !v) return;
+
+  const folder = le.event_folder || le.event_id || "";
+  const plate = le.selected_plate || "—";
+  const rec = le.recordings || {};
+  const c1 = !!rec.camera1;
+  const c2 = !!rec.camera2;
+  const warns = Array.isArray(le.recording_warnings) ? le.recording_warnings : [];
+  const partial = !!le.recording_partial || (c1 !== c2);
+
+  let meta = `<strong>Eveniment:</strong> ${escapeHtml(folder)}<br><strong>Număr:</strong> ${escapeHtml(plate)}<br>`;
+  meta += `<span style="color:${c1 ? "#86efac" : "#f87171"}">Camera 1: ${c1 ? "OK" : "lipsește / invalid"}</span> · `;
+  meta += `<span style="color:${c2 ? "#86efac" : "#f87171"}">Camera 2: ${c2 ? "OK" : "lipsește / invalid"}</span>`;
+  m.innerHTML = meta;
+
+  if (b && t) {
+    if (partial || warns.length) {
+      b.classList.add("visible");
+      const lines = [];
+      if (partial) lines.push("O singură cameră are înregistrare validă. Linkul portal va conține doar clipul disponibil.");
+      for (const w of warns) lines.push(escapeHtml(w));
+      t.innerHTML = lines.map((x) => "<div>" + x + "</div>").join("");
+    } else {
+      b.classList.remove("visible");
+      t.textContent = "";
+    }
+  }
+
+  let html = "";
+  if (folder) {
+    if (c1) {
+      html += `<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">Camera 1</div><video controls playsinline src="/events/${encodeURIComponent(folder)}/camera1.mp4"></video></div>`;
+    }
+    if (c2) {
+      html += `<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">Camera 2</div><video controls playsinline src="/events/${encodeURIComponent(folder)}/camera2.mp4"></video></div>`;
+    }
+    if (!c1 && !c2) {
+      html = "<p style=\"color:#f87171;font-size:13px\">Niciun fișier video valid în folder.</p>";
+    }
+  }
+  v.innerHTML = html;
+}
+
+async function portalTestStartWorkflow() {
+  const btn = document.getElementById("portalTestStartBtn");
+  const msg = document.getElementById("portalTestStatusMsg");
+  const durEl = document.getElementById("portalTestDuration");
+  stopPortalTestPoll();
+  portalTestClearPreview();
+  const dur = Math.min(600, Math.max(5, parseInt(durEl && durEl.value, 10) || 60));
+  if (durEl) durEl.value = String(dur);
+  btn.disabled = true;
+  msg.textContent = "Se pornește workflow…";
+  msg.style.color = "#94a3b8";
+  try {
+    const r = await fetch("/api/workflow/trigger", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ duration_seconds: dur }),
+    });
+    let data;
+    try {
+      data = await r.json();
+    } catch {
+      msg.textContent = "Răspuns invalid.";
+      msg.style.color = "#fca5a5";
+      return;
+    }
+    if (!r.ok || data.success === false) {
+      msg.textContent = (data && data.error) ? data.error : ("HTTP " + r.status);
+      msg.style.color = "#fca5a5";
+      return;
+    }
+    msg.textContent = "Workflow pornit.";
+    msg.style.color = "#86efac";
+    portalTestPollInt = setInterval(portalTestRefreshStatusOnce, 1000);
+    await portalTestRefreshStatusOnce();
+  } catch (e) {
+    msg.textContent = e && e.message ? e.message : String(e);
+    msg.style.color = "#fca5a5";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function portalTestSendLink() {
+  const out = document.getElementById("portalTestSendOut");
+  const smsPre = document.getElementById("portalTestSmsPre");
+  const btn = document.getElementById("portalTestSendBtn");
+  if (!portalTestLastEvent) {
+    out.innerHTML = "<span style='color:#fca5a5'>Rulează mai întâi un workflow sau așteaptă finalul.</span>";
+    smsPre.style.display = "none";
+    return;
+  }
+  const folder = portalTestLastEvent.event_folder || portalTestLastEvent.event_id;
+  const plate = portalTestLastEvent.selected_plate || "";
+  if (!folder || !plate) {
+    out.innerHTML = "<span style='color:#fca5a5'>Lipsesc folder sau număr din ultimul workflow.</span>";
+    return;
+  }
+  const owner = (document.getElementById("portalTestOwner") || {}).value || "Test Owner";
+  const mechanic = (document.getElementById("portalTestMechanic") || {}).value || "Test Mechanic";
+  const phone = (document.getElementById("portalTestPhone") || {}).value || "+00000000000";
+  const sendSms = !!(document.getElementById("portalTestSendSms") || {}).checked;
+  btn.disabled = true;
+  out.textContent = "Se creează linkul…";
+  try {
+    const r = await fetch("/api/customer-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_id: folder,
+        license_plate: plate,
+        owner_name: owner.trim() || "Test Owner",
+        mechanic_name: mechanic.trim() || "Test Mechanic",
+        phone_number: phone.trim() || "+00000000000",
+        send_sms: sendSms,
+      }),
+    });
+    let data;
+    try {
+      data = await r.json();
+    } catch {
+      out.textContent = "Răspuns invalid de la server.";
+      smsPre.style.display = "none";
+      return;
+    }
+    if (!r.ok) {
+      out.innerHTML = "<span style='color:#fca5a5'>" + escapeHtml(data.detail || data.message || ("HTTP " + r.status)) + "</span>";
+      smsPre.style.display = "none";
+      return;
+    }
+    let html = "";
+    if (data.public_url) {
+      html += "<p><strong>Link public:</strong> <a href=\"" + escapeHtml(data.public_url) + "\" target=\"_blank\" rel=\"noopener\" style=\"color:#38bdf8\">" + escapeHtml(data.public_url) + "</a></p>";
+    }
+    html += "<p><strong>SMS status:</strong> " + escapeHtml(String(data.sms_status || "—"));
+    if (data.sms_error) html += " <span style='color:#fca5a5'>(" + escapeHtml(data.sms_error) + ")</span>";
+    html += "</p>";
+    if (Array.isArray(data.warnings) && data.warnings.length) {
+      html += "<p style='color:#fde047;margin-top:8px'><strong>Avertismente:</strong><br>" + data.warnings.map((w) => escapeHtml(w)).join("<br>") + "</p>";
+    }
+    if (data.recording_partial) {
+      html += "<p style='color:#fde047'>Înregistrare parțială (o singură cameră).</p>";
+    }
+    out.innerHTML = html;
+    if (data.sms_preview) {
+      smsPre.textContent = data.sms_preview;
+      smsPre.style.display = "block";
+    } else {
+      smsPre.style.display = "none";
+    }
+  } catch (e) {
+    out.textContent = e && e.message ? e.message : String(e);
+    smsPre.style.display = "none";
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1661,7 +1985,11 @@ function toggleListen() {
 async function toggleTalk() {
   const btn = document.getElementById("talkBtn");
   if (!talkActive) {
-    await openAudioSession();
+    const opened = await openAudioSession();
+    if (!opened) {
+      log("Sesiunea ISAPI nu s-a deschis — nu se pornește microfonul. Sunetul merge implicit spre camera 2 (PTZ); verifică TwoWayAudio, portul HTTP și firmware.", "error");
+      return;
+    }
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 8000, channelCount: 1, echoCancellation: true, noiseSuppression: true } });
     } catch (e) {
@@ -1677,6 +2005,9 @@ async function toggleTalk() {
     talkWs.onopen = () => {
       log("WebSocket audio deschis", "success");
       micCtx     = new AudioContext({ sampleRate: 8000 });
+      // #region agent log
+      fetch('http://127.0.0.1:7408/ingest/3badff84-3b4a-4b92-acfa-53693e2e3a96',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e5dd89'},body:JSON.stringify({sessionId:'e5dd89',location:'index.html:talkWs.onopen',message:'mic_ctx',data:{sampleRate:micCtx.sampleRate,state:micCtx.state},timestamp:Date.now(),hypothesisId:'D',runId:'post-fix'})}).catch(()=>{});
+      // #endregion
       const src  = micCtx.createMediaStreamSource(micStream);
       micAnalyser = micCtx.createAnalyser();
       micAnalyser.fftSize = 256;
@@ -1734,14 +2065,23 @@ function stopTalk() {
 
 async function openAudioSession() {
   try {
+    // TwoWayAudio țintă: doar din backend (.env AUDIO_ISAPI_CAMERA, implicit 2 = PTZ), nu după tab-ul video.
     const r = await fetch("/api/audio/open", { method: "POST" });
-    const d = await r.json();
+    let d = {};
+    try { d = await r.json(); } catch (_) {}
+    // #region agent log
+    fetch('http://127.0.0.1:7408/ingest/3badff84-3b4a-4b92-acfa-53693e2e3a96',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e5dd89'},body:JSON.stringify({sessionId:'e5dd89',location:'index.html:openAudioSession',message:'audio_open_response',data:{httpStatus:r.status,ok:r.ok,success:!!d.success,error:d.error||null,detail:typeof d.detail==='string'?d.detail.slice(0,240):null,uiCamera:typeof currentCamera!=='undefined'?currentCamera:null,audioUsesBackendDefault:true},timestamp:Date.now(),hypothesisId:'C',runId:'post-fix'})}).catch(()=>{});
+    // #endregion
     if (d.success) {
       document.getElementById("audioSessionDot").classList.add("active");
       document.getElementById("audioSessionLabel").textContent = `Sesiune audio: deschisă (ID: ${d.sessionId})`;
       log("Sesiune audio deschisă", "success");
-    } else log("Eroare sesiune audio: " + d.error, "error");
-  } catch (e) { log("Eroare: " + e.message, "error"); }
+      return true;
+    }
+    const det = d.detail ? (" — " + d.detail) : "";
+    log("Eroare sesiune audio: " + (d.error || "necunoscută") + det, "error");
+    return false;
+  } catch (e) { log("Eroare: " + e.message, "error"); return false; }
 }
 
 async function closeAudioSession() {

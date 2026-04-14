@@ -10,9 +10,9 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Body, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
@@ -30,6 +30,7 @@ from camera.media import (
 )
 from camera.ptz import PTZClient
 from config import settings
+from debug_agent_log import agent_log
 from services.workflow import WorkflowMode, WorkflowService
 
 logger = logging.getLogger(__name__)
@@ -329,13 +330,36 @@ async def api_ptz_delete_preset(token: str, request: Request) -> dict:
 
 
 @router.post("/api/audio/open")
-async def api_audio_open(request: Request) -> dict:
+async def api_audio_open(
+    request: Request,
+    camera: Optional[int] = Query(default=None, description="1=fixed IPC, 2=PTZ; default from AUDIO_ISAPI_CAMERA"),
+) -> dict:
     audio = _audio(request)
     if audio.status()["open"]:
         return {"success": True, "sessionId": audio.status()["sessionId"], "message": "Already open"}
-    opened = await audio.open_session()
+    cam_arg = camera if camera in (1, 2) else None
+    opened = await audio.open_session(camera=cam_arg)
+    # #region agent log
+    st = audio.status()
+    agent_log(
+        hypothesis_id="A",
+        location="web_api.api_audio_open",
+        message="open_result",
+        data={
+            "opened": opened,
+            "detail": (audio.last_open_error or "")[:240],
+            "isapiCamera": st.get("isapiCamera"),
+            "isapiTarget": st.get("isapiTarget"),
+            "queryCamera": cam_arg,
+        },
+    )
+    # #endregion
     if not opened:
-        return JSONResponse(status_code=502, content={"error": "Failed to open audio session"})
+        payload: dict = {"error": "Failed to open audio session"}
+        detail = audio.last_open_error
+        if detail:
+            payload["detail"] = detail
+        return JSONResponse(status_code=502, content=payload)
     return {"success": True, "sessionId": audio.status()["sessionId"]}
 
 
@@ -360,9 +384,25 @@ async def api_audio_listen(request: Request, camera: int = 2) -> StreamingRespon
 async def ws_audio(websocket: WebSocket) -> None:
     await websocket.accept()
     audio: AudioClient = websocket.app.state.audio_client
+    _rx_dbg = 0
     try:
         while True:
             data = await websocket.receive_bytes()
+            _rx_dbg += 1
+            if _rx_dbg <= 10:
+                # #region agent log
+                st = audio.status()
+                agent_log(
+                    hypothesis_id="B",
+                    location="web_api.ws_audio",
+                    message="ws_receive",
+                    data={
+                        "seq": _rx_dbg,
+                        "byteLen": len(data),
+                        "sessionOpen": st.get("open"),
+                    },
+                )
+                # #endregion
             if not audio.status()["open"]:
                 continue
             await audio.send_pcm16_chunk(data)
@@ -517,8 +557,19 @@ async def api_workflow_trigger(request: Request) -> dict:
     workflow = _workflow(request)
     if workflow.is_busy():
         return JSONResponse(status_code=409, content={"success": False, "error": "Workflow already active"})
+    duration_override: int | None = None
     try:
-        run = await workflow.trigger(mode=WorkflowMode.SIMPLE, source="web")
+        body = await request.json()
+        if isinstance(body, dict) and body.get("duration_seconds") is not None:
+            duration_override = max(5, min(600, int(body["duration_seconds"])))
+    except Exception:
+        pass
+    try:
+        run = await workflow.trigger(
+            mode=WorkflowMode.SIMPLE,
+            source="web",
+            duration=duration_override,
+        )
     except RuntimeError as exc:
         return JSONResponse(status_code=409, content={"success": False, "error": str(exc)})
     return {"success": True, "session_id": run.session_id}
@@ -575,3 +626,47 @@ async def api_event_detail(event_id: str) -> dict:
     if not target.exists() or not target.is_dir():
         raise HTTPException(status_code=404, detail="Event not found")
     return _read_event_payload(target)
+
+
+# ── ESP Heartbeat ─────────────────────────────────────────────────
+# The ESP32 firmware can POST its status here periodically.
+# The Configure dashboard reads the last heartbeat via GET.
+
+_esp_heartbeat_cache: dict = {}
+
+
+class EspHeartbeatPayload(BaseModel):
+    temp_c: Optional[float] = Field(default=None)
+    fan_on: Optional[bool] = Field(default=None)
+    wifi_ssid: Optional[str] = Field(default=None)
+    countdown_seconds: Optional[int] = Field(default=None)
+    state: Optional[str] = Field(default=None)
+
+
+@router.post("/api/esp/heartbeat", summary="ESP posts its current status")
+async def esp_heartbeat_post(payload: EspHeartbeatPayload) -> dict:
+    """Receive a status heartbeat from the ESP32 device."""
+    _esp_heartbeat_cache.update({
+        **payload.model_dump(exclude_none=True),
+        "received_at": datetime.now(timezone.utc).isoformat(),
+    })
+    return {"ok": True}
+
+
+@router.get("/api/esp/heartbeat", summary="Get latest ESP heartbeat")
+async def esp_heartbeat_get() -> dict:
+    """Return the last ESP heartbeat, or 404 if none received yet."""
+    if not _esp_heartbeat_cache:
+        raise HTTPException(status_code=404, detail="No ESP heartbeat received yet")
+
+    received_at_str = _esp_heartbeat_cache.get("received_at")
+    age_seconds: Optional[int] = None
+    if received_at_str:
+        try:
+            received_dt = datetime.fromisoformat(received_at_str)
+            diff = datetime.now(timezone.utc) - received_dt
+            age_seconds = int(diff.total_seconds())
+        except Exception:
+            pass
+
+    return {**_esp_heartbeat_cache, "age_seconds": age_seconds}
