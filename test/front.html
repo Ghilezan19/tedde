@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALPR — Plate Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #666;
+    --radius: 4px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 300;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  /* Drop zone */
+  #dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+    background: var(--surface);
+  }
+
+  #dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(232,255,71,0.04);
+  }
+
+  #dropzone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: block;
+    opacity: 0.5;
+  }
+
+  #dropzone p {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  #dropzone span.hint {
+    display: block;
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: #444;
+  }
+
+  /* Preview */
+  #preview-wrap {
+    display: none;
+    margin-top: 1.5rem;
+    position: relative;
+  }
+
+  #preview-wrap img {
+    width: 100%;
+    border-radius: var(--radius);
+    display: block;
+    max-height: 340px;
+    object-fit: contain;
+    background: #111;
+  }
+
+  #change-btn {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: color 0.2s;
+  }
+  #change-btn:hover { color: var(--text); }
+
+  /* Analyze btn */
+  #analyze-btn {
+    display: none;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.9rem;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  #analyze-btn:hover { opacity: 0.9; }
+  #analyze-btn:active { transform: scale(0.99); }
+  #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Result */
+  #result {
+    display: none;
+    margin-top: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.6rem;
+  }
+
+  #result .label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+  }
+
+  #plate-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    word-break: break-all;
+  }
+
+  #plate-number.no-plate {
+    color: var(--accent2);
+    font-size: 1.2rem;
+  }
+
+  #confidence {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Spinner */
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Setup notice */
+  #setup-notice {
+    margin-top: 1.5rem;
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.25);
+    border-radius: var(--radius);
+    padding: 1rem 1.2rem;
+    font-size: 0.8rem;
+    color: #ccc;
+    line-height: 1.7;
+  }
+
+  #setup-notice code {
+    background: #111;
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+  }
+
+  #setup-notice summary {
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    list-style: none;
+  }
+
+  footer {
+    margin-top: 2.5rem;
+    font-size: 0.72rem;
+    color: #333;
+    font-family: 'Space Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ALPR // Plate Reader</h1>
+  <p>Drop an image — get the plate number</p>
+</header>
+
+<div class="container">
+
+  <div id="dropzone">
+    <input type="file" id="file-input" accept="image/*">
+    <span class="drop-icon">⬡</span>
+    <p>Drag & drop an image here</p>
+    <span class="hint">or click to browse — JPG, PNG, WEBP</span>
+  </div>
+
+  <div id="preview-wrap">
+    <img id="preview-img" src="" alt="Preview">
+    <button id="change-btn" onclick="resetAll()">✕ change</button>
+  </div>
+
+  <button id="analyze-btn" onclick="analyze()">Analyze plate</button>
+
+  <div id="result">
+    <div class="label">Detected plate</div>
+    <div id="plate-number">—</div>
+    <div id="confidence"></div>
+  </div>
+
+  <details id="setup-notice">
+    <summary>⚙ Backend setup required</summary>
+    This tool talks to a local Python server. Run it once:<br><br>
+    <code>pip install fast-alpr flask flask-cors pillow</code><br><br>
+    Then save and run this as <code>server.py</code>:
+    <pre style="margin-top:0.8rem; background:#111; padding:0.8rem; border-radius:3px; overflow-x:auto; font-size:0.72rem; color:#aaa;">
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from fast_alpr import ALPR
+import tempfile, os
+
+app = Flask(_name_)
+CORS(app)
+alpr = ALPR()
+
+@app.route('/recognize', methods=['POST'])
+def recognize():
+    f = request.files['image']
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp:
+        f.save(tmp.name)
+        results = alpr.run(tmp.name)
+        os.unlink(tmp.name)
+    plates = []
+    for r in results:
+        if r.ocr and r.ocr.text:
+            plates.append({
+                'plate': r.ocr.text,
+                'confidence': round(r.ocr.confidence * 100, 1)
+            })
+    return jsonify({'plates': plates})
+
+if _name_ == '_main_':
+    app.run(port=5050)
+</pre>
+    Then open this HTML file in your browser.
+  </details>
+
+</div>
+
+<footer>fast-alpr + flask // localhost:5050</footer>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const previewWrap = document.getElementById('preview-wrap');
+const previewImg = document.getElementById('preview-img');
+const analyzeBtn = document.getElementById('analyze-btn');
+const resultDiv = document.getElementById('result');
+const plateNumber = document.getElementById('plate-number');
+const confidence = document.getElementById('confidence');
+
+let currentFile = null;
+
+// Drag & drop
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadFile(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadFile(fileInput.files[0]);
+});
+
+function loadFile(file) {
+  currentFile = file;
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  dropzone.style.display = 'none';
+  previewWrap.style.display = 'block';
+  analyzeBtn.style.display = 'block';
+  resultDiv.style.display = 'none';
+}
+
+function resetAll() {
+  currentFile = null;
+  previewImg.src = '';
+  dropzone.style.display = 'block';
+  previewWrap.style.display = 'none';
+  analyzeBtn.style.display = 'none';
+  resultDiv.style.display = 'none';
+  fileInput.value = '';
+}
+
+async function analyze() {
+  if (!currentFile) return;
+  analyzeBtn.disabled = true;
+  analyzeBtn.innerHTML = '<span class="spinner"></span>Analyzing…';
+
+  const form = new FormData();
+  form.append('image', currentFile);
+
+  try {
+    const res = await fetch('http://localhost:5050/recognize', {
+      method: 'POST',
+      body: form
+    });
+    const data = await res.json();
+
+    resultDiv.style.display = 'block';
+
+    if (data.plates && data.plates.length > 0) {
+      const best = data.plates[0];
+      plateNumber.textContent = best.plate.toUpperCase();
+      plateNumber.className = '';
+      confidence.textContent =
+        `confidence: ${best.confidence}%` +
+        (data.plates.length > 1 ? `  •  +${data.plates.length - 1} more` : '');
+    } else {
+      plateNumber.textContent = 'No plate detected';
+      plateNumber.className = 'no-plate';
+      confidence.textContent = '';
+    }
+  } catch (err) {
+    resultDiv.style.display = 'block';
+    plateNumber.textContent = 'Server not running';
+    plateNumber.className = 'no-plate';
+    confidence.textContent = 'Start server.py on port 5050 (see setup below)';
+  }
+
+  analyzeBtn.disabled = false;
+  analyzeBtn.innerHTML = 'Analyze plate';
+}
+</script>
+</body>
+</html>

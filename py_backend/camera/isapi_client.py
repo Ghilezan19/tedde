@@ -5,7 +5,7 @@ Used by:
   - camera/audio.py  (TwoWayAudio)
   - camera/ir.py     (Image / IR control)
 
-Mirrors the cam2Request() logic from server.js:
+Digest-auth helper for Camera 2 ISAPI requests:
   1. Try cached nonce
   2. First attempt without auth → parse 401 WWW-Authenticate
   3. Probe /ISAPI/System/Time if camera returns non-401 challenge

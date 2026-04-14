@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     snapshot_dir: Path = Field(default=Path("./snapshots"))
     events_dir: Path = Field(default=Path("./events"))
 
-    # ffmpeg binary — same variable used by the Node.js server
+    # ffmpeg binary
     ffmpeg_path: str = Field(default="/opt/homebrew/bin/ffmpeg")
 
     # ------------------------------------------------------------------ #
@@ -113,7 +113,7 @@ class Settings(BaseSettings):
         description="Camera used to capture the workflow ALPR snapshot.",
     )
     alpr_detector_conf_thresh: float = Field(
-        default=0.18,
+        default=0.1,
         ge=0.05,
         le=0.95,
         description="fast-alpr YOLO confidence (default lib=0.4). Lower helps small/distant plates.",
@@ -123,6 +123,18 @@ class Settings(BaseSettings):
         ge=0,
         le=1,
         description="1 = plate detector ONNX on CPUExecutionProvider only (avoids empty CoreML outputs on some Macs).",
+    )
+    alpr_upscale_retry: int = Field(
+        default=1,
+        ge=0,
+        le=1,
+        description="1 = dacă prima detectare e goală, reîncearcă pe imagine scalată (mai multe px pentru plăcuță).",
+    )
+    alpr_predict_upscale: float = Field(
+        default=1.5,
+        ge=1.05,
+        le=2.5,
+        description="Factor mărire pentru retry-ul ALPR (doar în RAM, nu schimbă fișierul snapshot).",
     )
 
     # ------------------------------------------------------------------ #

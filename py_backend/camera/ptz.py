@@ -2,7 +2,7 @@
 Async ONVIF PTZ client for Camera 2 (HiLook PTZ-N2C400I-W).
 
 Uses ONVIF SOAP over HTTP with WS-Security PasswordDigest authentication,
-exactly as implemented in server.js (SHA-1 digest, fresh nonce per request).
+using SHA-1 digest authentication with a fresh nonce per request.
 
 Supported operations:
 - goto_preset()       — GotoPreset

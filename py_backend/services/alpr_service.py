@@ -44,7 +44,7 @@ def normalize_plate_text(text: str) -> str:
 
 
 def _predict_image_sync(model: Any, path_str: str) -> tuple[dict[str, Any], list[Any]]:
-    """Load JPEG with OpenCV, run ALPR.predict(ndarray) (BGR as required by fast_alpr)."""
+    """Load JPEG with OpenCV, run ALPR.predict(ndarray) (BGR). Optional upscale retry if no boxes."""
     import cv2
 
     meta: dict[str, Any] = {}
@@ -54,10 +54,37 @@ def _predict_image_sync(model: Any, path_str: str) -> tuple[dict[str, Any], list
         return meta, []
     meta["imread_ok"] = True
     meta["shape_hwc"] = [int(x) for x in img.shape]
-    results = model.predict(img)
+
+    def _run(im: Any) -> list[Any]:
+        try:
+            return model.predict(im)
+        except Exception as exc:
+            errs = meta.setdefault("predict_errors", [])
+            errs.append(type(exc).__name__ + ":" + str(exc)[:120])
+            return []
+
+    results = _run(img)
     meta["alpr_n"] = len(results)
     if results:
         meta["first_det_conf"] = round(float(results[0].detection.confidence), 4)
+        return meta, results
+
+    # Letterbox la 384px micșorează plăcuțe mici / off-domain (ex. pe tablă) — retry pe cadru mărit.
+    if (
+        int(settings.alpr_upscale_retry) == 1
+        and min(img.shape[0], img.shape[1]) >= 400
+    ):
+        usf = float(settings.alpr_predict_upscale)
+        h2 = int(round(img.shape[0] * usf))
+        w2 = int(round(img.shape[1] * usf))
+        up = cv2.resize(img, (w2, h2), interpolation=cv2.INTER_CUBIC)
+        meta["upscale_factor"] = usf
+        meta["upscale_shape_hwc"] = [h2, w2, 3]
+        results = _run(up)
+        meta["alpr_n_after_upscale"] = len(results)
+        if results:
+            meta["first_det_conf"] = round(float(results[0].detection.confidence), 4)
+
     return meta, results
 
 
@@ -84,7 +111,10 @@ class ALPRService:
                 def _make_alpr() -> Any:
                     kw: dict[str, Any] = {"detector_conf_thresh": thresh}
                     if cpu_only:
-                        kw["detector_providers"] = ["CPUExecutionProvider"]
+                        # OCR pe același provider evită cazuri CoreML ciudate după detecție.
+                        cpu = ["CPUExecutionProvider"]
+                        kw["detector_providers"] = cpu
+                        kw["ocr_providers"] = cpu
                     return ALPR(**kw)
 
                 self._alpr = await asyncio.to_thread(_make_alpr)

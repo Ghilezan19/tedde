@@ -1,5 +1,5 @@
 """
-Browser-facing routes migrated from the old Node server.
+Browser-facing routes served directly by FastAPI.
 """
 
 from __future__ import annotations

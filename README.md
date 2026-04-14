@@ -1,146 +1,181 @@
-# HiLook / Hikvision Camera Integration
+# Tedde Unified Camera Service
 
-Aplicație Node.js + Express pentru integrarea camerei HiLook IPC-D140HA-D-W via RTSP.
+Serviciu Python-only bazat pe FastAPI pentru:
+- dashboard web
+- stream live MJPEG
+- snapshot-uri si inregistrari
+- control PTZ / audio / image settings
+- workflow unic pentru browser + ESP
+- ALPR integrat la startul workflow-ului
 
-## Arhitectură
+## Arhitectura
 
+```text
+Browser / ESP  <-->  FastAPI (Python)  <-->  ffmpeg  <-->  Camere RTSP
+                        |
+                        +-- /api/stream
+                        +-- /api/snapshot
+                        +-- /api/record/*
+                        +-- /api/workflow/*
+                        +-- /api/events
+                        +-- /ws/audio
 ```
-Browser  <-->  Express Server  <-->  ffmpeg  <-->  Camera RTSP
-                  |
-                  +-- /api/stream     -> RTSP -> MJPEG (live în browser)
-                  +-- /api/snapshot   -> RTSP -> JPG (un singur frame)
-                  +-- /api/snapshot/save -> salvează JPG pe disc
-                  +-- /api/snapshots  -> listează snapshot-urile salvate
-                  +-- /api/status     -> verifică dacă camera e online
-                  +-- /api/info       -> informații configurare
-```
 
-## Structura Fișierelor
+Nu mai exista runtime Node.js. `server.js`, `package.json` si `package-lock.json`
+nu mai sunt necesare in deploy.
 
-```
-tedddde/
-├── .env                 # Credențiale cameră (NU se commitează)
-├── .gitignore           # Exclude .env, node_modules, snapshots
-├── package.json         # Dependențe Node.js
-├── server.js            # Server Express + ffmpeg wrapper
+## Structura
+
+```text
+tedde/
+├── .env
+├── .env_example
 ├── public/
-│   └── index.html       # Frontend - live view, controls, gallery
-├── snapshots/           # Folder pentru snapshot-uri salvate (auto-creat)
-└── README.md            # Acest fișier
+│   └── index.html
+├── py_backend/
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── camera/
+│   ├── routes/
+│   └── services/
+├── snapshots/
+├── recordings/
+├── events/
+└── README.md
 ```
 
-## Prerequisite
+## Cerinte
 
-### 1. Node.js (v18+)
-- Descarcă de la: https://nodejs.org/
-- Verifică: `node --version`
+### 1. Python 3.11+
+
+Verifica:
+
+```bash
+python3 --version
+```
 
 ### 2. ffmpeg
-- **Descarcă** de la: https://www.gyan.dev/ffmpeg/builds/
-  - Alege: `ffmpeg-release-essentials.zip`
-- **Extrage** într-un folder, ex: `C:\ffmpeg`
-- **Adaugă în PATH**:
-  1. Caută "Environment Variables" în Start Menu
-  2. Edit "Path" la System variables
-  3. Adaugă: `C:\ffmpeg\bin`
-- **Verifică**: `ffmpeg -version`
+
+Verifica:
+
+```bash
+ffmpeg -version
+```
+
+Daca `ffmpeg` nu este in PATH, seteaza calea completa in `.env` la `FFMPEG_PATH`.
 
 ## Instalare
 
+Din root-ul repo-ului:
+
 ```bash
-cd C:\Users\ghile\Desktop\tedddde
-npm install
+cd /Users/maleticimiroslav/CamereTedde/tedde
+
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install --upgrade pip
+pip install -r py_backend/requirements.txt
+cp .env_example .env
 ```
+
+Completeaza apoi `.env` cu:
+- `PY_SERVER_PORT`
+- `FFMPEG_PATH`
+- credentialele camerelor
+- `RECORDING_DURATION_SECONDS`
+- optional `ESP_COUNTDOWN_SECONDS`
+- `EVENTS_DIR`
+- `ALPR_ENABLED`
+- `ALPR_CAMERA`
 
 ## Pornire
 
 ```bash
-npm start
+cd /Users/maleticimiroslav/CamereTedde/tedde/py_backend
+source ../.venv/bin/activate
+python3 main.py
 ```
 
-Deschide browserul la: **http://localhost:3000**
+Alternativ, fara reload:
 
-## Utilizare
-
-### Live Stream în browser
-1. Deschide http://localhost:3000
-2. Alege calitatea (Sub/Main) și FPS-ul
-3. Apasă **Start Stream**
-4. Stream-ul se reconectează automat dacă pică
-
-### Snapshot în browser
-```
-http://localhost:3000/api/snapshot
-http://localhost:3000/api/snapshot?quality=main
-http://localhost:3000/api/snapshot?quality=sub
+```bash
+cd /Users/maleticimiroslav/CamereTedde/tedde/py_backend
+source ../.venv/bin/activate
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-### Snapshot salvat pe disc
-```
-http://localhost:3000/api/snapshot/save
-http://localhost:3000/api/snapshot/save?quality=main&filename=intrare_principala
-```
+## Acces
 
-### Verificare status cameră
-```
-http://localhost:3000/api/status
-```
+- UI local: `http://localhost:8000`
+- Health: `http://localhost:8000/health`
+- Detailed health: `http://localhost:8000/api/health`
+- ESP config: `http://localhost:8000/api/esp/config`
 
-## Schimbare Main Stream ↔ Sub Stream
+ESP-ul si browserul trebuie sa foloseasca acelasi host si acelasi port.
 
-### Din interfață
-- Selectează din dropdown-ul "Calitate" → Main Stream sau Sub Stream
+## Workflow
 
-### Din URL (API direct)
-- **Main stream** (rezoluție maximă): `?quality=main`
-- **Sub stream** (rezoluție mică, mai rapid): `?quality=sub`
+Trigger din browser:
 
-### Din .env
-```env
-RTSP_MAIN_PATH=/Streaming/channels/101
-RTSP_SUB_PATH=/Streaming/channels/102
+```bash
+POST /api/workflow/trigger
 ```
 
-Pe unele camere HiLook, al treilea stream este:
-```
-/Streaming/channels/103
-```
+Trigger compatibil ESP:
 
-## Protejarea Credențialelor
-
-1. Credențialele sunt în fișierul `.env` (exclus din git prin `.gitignore`)
-2. **NU hardcoda** parola în cod
-3. Parola cu `@` este encodată automat prin `encodeURIComponent()`
-4. Dacă muți proiectul pe alt PC, copiază și `.env`
-
-## Cum funcționează conversia RTSP → Browser
-
-Browserele **NU** pot reda RTSP direct. Soluția folosită:
-
-```
-Camera RTSP  --(ffmpeg)-->  MJPEG stream  --(HTTP)-->  Browser <img>
+```bash
+POST /counter-start
 ```
 
-- **ffmpeg** se conectează la camera RTSP via TCP
-- Convertește fiecare frame în JPEG
-- Le trimite ca `multipart/x-mixed-replace` (MJPEG)
-- Tag-ul `<img>` din browser redă automat MJPEG
+Status workflow:
+
+```bash
+GET /api/workflow/status
+GET /api/events
+GET /api/events/{event_id}
+```
+
+La startul workflow-ului:
+1. se pornesc inregistrarile pe camera 1 si 2
+2. se face snapshot din camera configurata pentru ALPR
+3. ruleaza ALPR
+4. se creeaza folderul evenimentului
+5. se salveaza `alpr_start.jpg`, `alpr.json`, `camera1.mp4`, `camera2.mp4`
+
+## Foldere rezultate
+
+- snapshot-uri manuale: `./snapshots`
+- inregistrari manuale: `./recordings`
+- evenimente workflow: `./events`
+
+## Oprire
+
+Poti opri serverul cu `Ctrl+C` sau cu scriptul:
+
+```bash
+cd /Users/maleticimiroslav/CamereTedde/tedde/py_backend
+./stop.sh
+```
 
 ## Troubleshooting
 
-### "ffmpeg nu este recunoscut"
-- Verifică că ffmpeg e în PATH: `ffmpeg -version`
-- Restart terminal după adăugarea în PATH
+### `/health` raspunde `degraded`
 
-### "Nu se poate conecta la cameră"
-- Verifică IP: `ping 192.168.100.105`
-- Verifică RTSP cu VLC: `rtsp://admin:Ghilezan19%40@192.168.100.105:554/Streaming/channels/101`
-- Verifică firewall-ul Windows
+Serverul a pornit, dar una sau ambele camere nu raspund momentan.
 
-### Stream-ul e lent
-- Folosește Sub Stream în loc de Main
-- Scade FPS-ul la 2-5
-- Setează o lățime mai mică (640px)
+### Snapshot / stream / record nu merg
 
-### Port 3000 ocupat
-- Schimbă `SERVER_PORT` în `.env`
+Verifica:
+- IP-urile camerelor
+- user/parola in `.env`
+- conectivitatea RTSP
+- `FFMPEG_PATH`
+
+### ALPR nu merge
+
+Verifica:
+- `ALPR_ENABLED=1`
+- pachetul `fast-alpr` instalat
+- camera configurata la `ALPR_CAMERA`
+
