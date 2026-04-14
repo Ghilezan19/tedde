@@ -24,7 +24,7 @@ import logging
 import socket
 import time
 import urllib.request
-from typing import Optional
+from typing import Optional, Tuple
 
 from gtts import gTTS
 
@@ -32,6 +32,39 @@ from camera.isapi_client import ISAPIClient
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def build_isapi_client_for_audio(camera: Optional[int] = None) -> Tuple[ISAPIClient, int]:
+    """ISAPI client and camera index (1 or 2). Override from UI/API, else ``audio_isapi_camera``."""
+    idx = settings.audio_isapi_camera if camera not in (1, 2) else camera
+    if idx == 1:
+        return (
+            ISAPIClient(
+                ip=settings.camera_ip,
+                port=settings.camera1_http_port,
+                username=settings.camera_username,
+                password=settings.camera_password,
+            ),
+            1,
+        )
+    return (
+        ISAPIClient(
+            ip=settings.camera2_ip,
+            port=settings.camera2_http_port,
+            username=settings.camera2_username,
+            password=settings.camera2_password,
+        ),
+        2,
+    )
+
+
+def _sanitize_audio_error(message: str) -> str:
+    """Strip credentials if they ever appear in exception text."""
+    out = message
+    for pwd in (settings.camera_password, settings.camera2_password):
+        if pwd and pwd in out:
+            out = out.replace(pwd, "***")
+    return out
 
 _AUDIO_OPEN  = "/ISAPI/System/TwoWayAudio/channels/1/open"
 _AUDIO_CLOSE = "/ISAPI/System/TwoWayAudio/channels/1/close"
@@ -126,32 +159,35 @@ class AudioClient:
     """
 
     def __init__(self) -> None:
-        self._isapi = ISAPIClient(
-            ip=settings.camera2_ip,
-            port=settings.camera2_http_port,
-            username=settings.camera2_username,
-            password=settings.camera2_password,
-        )
+        self._isapi, self._audio_camera_index = build_isapi_client_for_audio()
         self._session_open = False
         self._audio_sock: Optional[socket.socket] = None
         # urllib opener — built once, carries Digest Auth cookies/nonce
         self._opener: Optional[urllib.request.OpenerDirector] = None
         self._session_id = "1"
         self._write_lock = asyncio.Lock()
+        self._last_open_error: Optional[str] = None
+
+    @property
+    def last_open_error(self) -> Optional[str]:
+        return self._last_open_error
 
     # ------------------------------------------------------------------ #
     # Session management
     # ------------------------------------------------------------------ #
 
-    async def open_session(self) -> bool:
+    async def open_session(self, camera: Optional[int] = None) -> bool:
         """
         Open a TwoWayAudio session on the camera.
         Builds a urllib opener with Digest Auth and opens the audio stream socket.
+        ``camera`` 1 or 2 overrides ``AUDIO_ISAPI_CAMERA`` for this session (browser tab).
         Returns True on success.
         """
         if self._session_open:
             return True
 
+        self._isapi, self._audio_camera_index = build_isapi_client_for_audio(camera)
+        self._last_open_error = None
         base_url = self._isapi.base_url
         username = self._isapi.username
         password = self._isapi.password
@@ -173,6 +209,7 @@ class AudioClient:
                 ),
             )
         except Exception as exc:
+            self._last_open_error = _sanitize_audio_error(str(exc))
             logger.error("[AUDIO] open_session failed: %s", exc)
             return False
 
@@ -185,12 +222,15 @@ class AudioClient:
                 lambda: self._open_audio_stream(data_url, grabber),
             )
         except Exception as exc:
+            self._last_open_error = _sanitize_audio_error(str(exc))
             logger.error("[AUDIO] audioData stream open failed: %s", exc)
             return False
 
         self._audio_sock = grabber.sock
         if self._audio_sock is None:
-            logger.error("[AUDIO] SocketGrabber did not capture the socket")
+            msg = "SocketGrabber did not capture the socket"
+            self._last_open_error = msg
+            logger.error("[AUDIO] %s", msg)
             return False
 
         self._session_open = True
@@ -230,7 +270,13 @@ class AudioClient:
         logger.info("[AUDIO] Session closed")
 
     def status(self) -> dict:
-        return {"open": self._session_open, "sessionId": self._session_id if self._session_open else None}
+        host = self._isapi.base_url.removeprefix("http://")
+        return {
+            "open": self._session_open,
+            "sessionId": self._session_id if self._session_open else None,
+            "isapiCamera": self._audio_camera_index,
+            "isapiTarget": host,
+        }
 
     # ------------------------------------------------------------------ #
     # TTS playback

@@ -155,6 +155,44 @@
   #analyze-btn:active { transform: scale(0.99); }
   #analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+  #benchmark-btn {
+    display: none;
+    width: 100%;
+    margin-top: 0.55rem;
+    padding: 0.75rem 0.9rem;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #benchmark-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  #benchmark-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  #benchmark-btn .spinner {
+    border-color: rgba(255,255,255,0.15);
+    border-top-color: var(--accent);
+  }
+
+  #benchmark-wrap {
+    display: none;
+    margin-top: 1rem;
+    font-size: 0.78rem;
+    overflow-x: auto;
+  }
+  #benchmark-wrap.visible { display: block; }
+  #benchmark-wrap table { width: 100%; border-collapse: collapse; font-family: 'Space Mono', monospace; font-size: 0.68rem; }
+  #benchmark-wrap th, #benchmark-wrap td { padding: 0.45rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #benchmark-wrap th { color: var(--muted); font-weight: 600; }
+  #benchmark-wrap td.num { text-align: right; color: var(--muted); }
+  #benchmark-wrap .bench-meta { color: var(--muted); margin-bottom: 0.6rem; line-height: 1.5; }
+  #benchmark-wrap .bench-err { color: var(--accent2); font-size: 0.65rem; word-break: break-word; }
+
   /* Result */
   #result {
     display: none;
@@ -208,11 +246,11 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Setup notice */
+  /* Setup notice — help only, not an error from Analyze */
   #setup-notice {
     margin-top: 1.5rem;
-    background: rgba(255,107,53,0.08);
-    border: 1px solid rgba(255,107,53,0.25);
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 1rem 1.2rem;
     font-size: 0.8rem;
@@ -234,7 +272,7 @@
     font-family: 'Space Mono', monospace;
     font-size: 0.7rem;
     letter-spacing: 0.1em;
-    color: var(--accent2);
+    color: var(--muted);
     text-transform: uppercase;
     margin-bottom: 0.6rem;
     list-style: none;
@@ -252,7 +290,7 @@
 
 <header>
   <h1>ALPR // Plate Reader</h1>
-  <p>Drop an image — get the plate number</p>
+  <p>Drop an image — get the plate number. Works best on plates on vehicles; indoor / desk scenes often miss.</p>
 </header>
 
 <div class="container">
@@ -270,6 +308,12 @@
   </div>
 
   <button id="analyze-btn" onclick="analyze()">Analyze plate</button>
+  <button id="benchmark-btn" type="button" onclick="runBenchmark()" disabled>Benchmark all detector models</button>
+
+  <div id="benchmark-wrap">
+    <p id="benchmark-meta" class="bench-meta"></p>
+    <div id="benchmark-table-host"></div>
+  </div>
 
   <div id="result">
     <div class="label">Detected plate</div>
@@ -278,9 +322,10 @@
   </div>
 
   <details id="setup-notice">
-    <summary>⚙ Backend setup required</summary>
+    <summary>How to run the local server (first time)</summary>
     This tool talks to a local Python server. Run it once:<br><br>
-    <code>pip install fast-alpr flask flask-cors pillow</code><br><br>
+    <code>pip install fast-alpr flask flask-cors opencv-python-headless</code><br><br>
+    Endpoints: <code>POST /recognize</code> (single default model) and <code>POST /benchmark</code> (all detector variants — slower, first run downloads ONNX).<br><br>
     Then save and run this as <code>server.py</code>:
     <pre style="margin-top:0.8rem; background:#111; padding:0.8rem; border-radius:3px; overflow-x:auto; font-size:0.72rem; color:#aaa;">
 from flask import Flask, request, jsonify
@@ -324,11 +369,22 @@ const fileInput = document.getElementById('file-input');
 const previewWrap = document.getElementById('preview-wrap');
 const previewImg = document.getElementById('preview-img');
 const analyzeBtn = document.getElementById('analyze-btn');
+const benchmarkBtn = document.getElementById('benchmark-btn');
+const benchmarkWrap = document.getElementById('benchmark-wrap');
+const benchmarkMeta = document.getElementById('benchmark-meta');
+const benchmarkTableHost = document.getElementById('benchmark-table-host');
 const resultDiv = document.getElementById('result');
 const plateNumber = document.getElementById('plate-number');
 const confidence = document.getElementById('confidence');
 
 let currentFile = null;
+
+function escapeHtml(s) {
+  if (s == null || s === '') return '';
+  const div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML;
+}
 
 // Drag & drop
 dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
@@ -351,6 +407,11 @@ function loadFile(file) {
   dropzone.style.display = 'none';
   previewWrap.style.display = 'block';
   analyzeBtn.style.display = 'block';
+  benchmarkBtn.style.display = 'block';
+  benchmarkBtn.disabled = false;
+  benchmarkWrap.classList.remove('visible');
+  benchmarkTableHost.innerHTML = '';
+  benchmarkMeta.textContent = '';
   resultDiv.style.display = 'none';
 }
 
@@ -360,6 +421,11 @@ function resetAll() {
   dropzone.style.display = 'block';
   previewWrap.style.display = 'none';
   analyzeBtn.style.display = 'none';
+  benchmarkBtn.style.display = 'none';
+  benchmarkBtn.disabled = true;
+  benchmarkWrap.classList.remove('visible');
+  benchmarkTableHost.innerHTML = '';
+  benchmarkMeta.textContent = '';
   resultDiv.style.display = 'none';
   fileInput.value = '';
 }
@@ -402,6 +468,65 @@ async function analyze() {
 
   analyzeBtn.disabled = false;
   analyzeBtn.innerHTML = 'Analyze plate';
+}
+
+async function runBenchmark() {
+  if (!currentFile) return;
+  benchmarkBtn.disabled = true;
+  analyzeBtn.disabled = true;
+  benchmarkBtn.innerHTML = '<span class="spinner"></span>Benchmarking…';
+  benchmarkWrap.classList.add('visible');
+  benchmarkMeta.textContent = 'Running all detector models (may take several minutes on first run).';
+  benchmarkTableHost.innerHTML = '';
+
+  const form = new FormData();
+  form.append('image', currentFile);
+
+  try {
+    const res = await fetch('http://localhost:5050/benchmark', {
+      method: 'POST',
+      body: form
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      benchmarkMeta.textContent = data.error || ('HTTP ' + res.status);
+      benchmarkTableHost.innerHTML = '<p class="bench-err">Start test/server.py on port 5050 if the server is not running.</p>';
+      return;
+    }
+
+    benchmarkMeta.textContent =
+      'OCR: ' + (data.ocr_model || '') +
+      ' · thresh ' + String(data.detector_conf_thresh ?? '') +
+      ' · CPU-only: ' + String(data.detector_cpu_only);
+
+    const runs = Array.isArray(data.runs) ? data.runs : [];
+    let thead = '<thead><tr><th>Detector</th><th>Top plate</th><th class="num">Boxes</th><th class="num">Init ms</th><th class="num">Pred ms</th><th>Error</th></tr></thead>';
+    let body = '<tbody>';
+    for (const row of runs) {
+      const plate = row.selected_plate
+        ? escapeHtml(row.selected_plate) + (row.selected_confidence != null ? ' (' + escapeHtml(String(row.selected_confidence)) + '%)' : '')
+        : '—';
+      const err = row.error ? '<span class="bench-err">' + escapeHtml(String(row.error)) + '</span>' : '';
+      body += '<tr>'
+        + '<td>' + escapeHtml(row.detector_model || '') + '</td>'
+        + '<td>' + plate + '</td>'
+        + '<td class="num">' + escapeHtml(String(row.n_boxes != null ? row.n_boxes : '—')) + '</td>'
+        + '<td class="num">' + escapeHtml(String(row.ms_init != null ? row.ms_init : '—')) + '</td>'
+        + '<td class="num">' + escapeHtml(String(row.ms_predict != null ? row.ms_predict : '—')) + '</td>'
+        + '<td>' + err + '</td>'
+        + '</tr>';
+    }
+    body += '</tbody>';
+    benchmarkTableHost.innerHTML = '<table>' + thead + body + '</table>';
+  } catch (err) {
+    benchmarkMeta.textContent = err && err.message ? err.message : String(err);
+    benchmarkTableHost.innerHTML = '<p class="bench-err">Could not reach http://localhost:5050/benchmark</p>';
+  } finally {
+    benchmarkBtn.disabled = false;
+    analyzeBtn.disabled = false;
+    benchmarkBtn.innerHTML = 'Benchmark all detector models';
+  }
 }
 </script>
 </body>

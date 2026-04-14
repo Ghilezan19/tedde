@@ -10,9 +10,9 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Body, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
@@ -329,13 +329,27 @@ async def api_ptz_delete_preset(token: str, request: Request) -> dict:
 
 
 @router.post("/api/audio/open")
-async def api_audio_open(request: Request) -> dict:
+async def api_audio_open(
+    request: Request,
+    camera: Optional[int] = Query(default=None, description="1=fixed IPC, 2=PTZ; default from AUDIO_ISAPI_CAMERA"),
+) -> dict:
     audio = _audio(request)
     if audio.status()["open"]:
         return {"success": True, "sessionId": audio.status()["sessionId"], "message": "Already open"}
-    opened = await audio.open_session()
+    cam_arg = camera if camera in (1, 2) else None
+    opened = await audio.open_session(camera=cam_arg)
     if not opened:
-        return JSONResponse(status_code=502, content={"error": "Failed to open audio session"})
+        payload: dict = {"error": "Failed to open audio session"}
+        detail = audio.last_open_error
+        if detail:
+            payload["detail"] = detail
+            if "404" in detail:
+                payload["hint"] = (
+                    "TwoWayAudio lipsește pe această cameră/port HTTP (des întâlnit la PTZ HiLook). "
+                    "Încearcă AUDIO_ISAPI_CAMERA=1 dacă IPC-ul fix suportă difuzorul, alt port HTTP, "
+                    "firmware sau difuzor extern."
+                )
+        return JSONResponse(status_code=502, content=payload)
     return {"success": True, "sessionId": audio.status()["sessionId"]}
 
 
@@ -517,8 +531,19 @@ async def api_workflow_trigger(request: Request) -> dict:
     workflow = _workflow(request)
     if workflow.is_busy():
         return JSONResponse(status_code=409, content={"success": False, "error": "Workflow already active"})
+    duration_override: int | None = None
     try:
-        run = await workflow.trigger(mode=WorkflowMode.SIMPLE, source="web")
+        body = await request.json()
+        if isinstance(body, dict) and body.get("duration_seconds") is not None:
+            duration_override = max(5, min(600, int(body["duration_seconds"])))
+    except Exception:
+        pass
+    try:
+        run = await workflow.trigger(
+            mode=WorkflowMode.SIMPLE,
+            source="web",
+            duration=duration_override,
+        )
     except RuntimeError as exc:
         return JSONResponse(status_code=409, content={"success": False, "error": str(exc)})
     return {"success": True, "session_id": run.session_id}

@@ -7,6 +7,8 @@ Serviciu Python-only bazat pe FastAPI pentru:
 - control PTZ / audio / image settings
 - workflow unic pentru browser + ESP
 - ALPR integrat la startul workflow-ului
+- portal public pentru clienti cu quiz + video share
+- trimitere SMS prin backend `mock` sau `custom_http`
 
 ## Arhitectura
 
@@ -18,7 +20,9 @@ Browser / ESP  <-->  FastAPI (Python)  <-->  ffmpeg  <-->  Camere RTSP
                         +-- /api/record/*
                         +-- /api/workflow/*
                         +-- /api/events
+                        +-- /api/customer-links
                         +-- /ws/audio
+                        +-- /verificare/{token}
 ```
 
 Nu mai exista runtime Node.js. `server.js`, `package.json` si `package-lock.json`
@@ -88,6 +92,9 @@ Completeaza apoi `.env` cu:
 - `EVENTS_DIR`
 - `ALPR_ENABLED`
 - `ALPR_CAMERA`
+- `PUBLIC_BASE_URL`
+- `CUSTOMER_PORTAL_DB_PATH`
+- `SMS_BACKEND`
 
 ## Pornire
 
@@ -120,7 +127,12 @@ Trigger din browser:
 
 ```bash
 POST /api/workflow/trigger
+Content-Type: application/json
+
+{"duration_seconds": 30}
 ```
+
+(`duration_seconds` este opțional, 5–600; dacă lipsește, se folosește `RECORDING_DURATION_SECONDS` din `.env`.)
 
 Trigger compatibil ESP:
 
@@ -137,11 +149,96 @@ GET /api/events/{event_id}
 ```
 
 La startul workflow-ului:
-1. se pornesc inregistrarile pe camera 1 si 2
-2. se face snapshot din camera configurata pentru ALPR
-3. ruleaza ALPR
-4. se creeaza folderul evenimentului
-5. se salveaza `alpr_start.jpg`, `alpr.json`, `camera1.mp4`, `camera2.mp4`
+1. se încearcă înregistrările pe camera 1 și 2 (dacă ffmpeg nu pornește pe o cameră, cealaltă continuă)
+2. se face snapshot din camera configurată pentru ALPR
+3. rulează ALPR
+4. se creează folderul evenimentului
+5. se salvează `alpr_start.jpg`, `alpr.json` și câte fișiere `camera*.mp4` sunt valide (minim ~8 KB; o cameră poate lipsi)
+
+În UI: tab **„Test”** în panoul din dreapta (`public/index.html`) — countdown, preview clipuri, trimitere link + previzualizare SMS.
+
+Status workflow (`GET /api/workflow/status`, câmpul `last_event`) include `recordings`, `recording_warnings`, `recording_partial` după finalizare.
+
+## Portal client + SMS
+
+### 1. Ia `event_id`
+
+Operatorul alege evenimentul din:
+
+```bash
+curl http://localhost:8000/api/events
+```
+
+`event_id` este chiar numele folderului din `events/`, de forma:
+
+```text
+B123ABC_2026-04-14T12-30-00Z
+```
+
+### 2. Creeaza linkul public
+
+```bash
+curl -X POST http://localhost:8000/api/customer-links \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_id": "B123ABC_2026-04-14T12-30-00Z",
+    "license_plate": "B123ABC",
+    "owner_name": "Ion Popescu",
+    "mechanic_name": "Mihai",
+    "phone_number": "+40744111222",
+    "send_sms": true
+  }'
+```
+
+Raspunsul intoarce:
+- `link_id`
+- `token`
+- `public_url`
+- `sms_status`
+- `sms_preview` (textul SMS, inclusiv URL)
+- `warnings`, `recording_partial` dacă există o singură înregistrare video validă
+- `expires_at`
+
+### 3. Re-trimite acelasi link
+
+```bash
+curl -X POST http://localhost:8000/api/customer-links/12/resend
+```
+
+Se reutilizeaza acelasi token; nu se genereaza alt link.
+
+### 4. Public URL
+
+Linkul public este construit strict din `PUBLIC_BASE_URL` + `PORTAL_PATH_PREFIX`.
+Pentru mutare pe domeniu sau subdomeniu nou schimbi doar:
+
+```env
+PUBLIC_BASE_URL=https://portal.exemplu.ro
+PORTAL_PATH_PREFIX=/verificare
+```
+
+Nu exista auto-detect dupa host-ul request-ului.
+
+### 5. Provider SMS
+
+Default local:
+
+```env
+SMS_BACKEND=mock
+```
+
+Provider HTTP custom:
+
+```env
+SMS_BACKEND=custom_http
+SMS_HTTP_URL=https://provider.example/send
+SMS_HTTP_METHOD=POST
+SMS_HTTP_HEADERS_JSON={"Authorization":"Bearer token","Content-Type":"application/json"}
+SMS_HTTP_BODY_TEMPLATE={"to":"{{to}}","message":"{{message}}"}
+```
+
+Backend-ul inlocuieste doar `{{to}}` si `{{message}}`. Orice raspuns HTTP `2xx`
+este tratat ca `sent`; restul devin `failed`, dar linkul ramane valid.
 
 ## Foldere rezultate
 
@@ -178,4 +275,3 @@ Verifica:
 - `ALPR_ENABLED=1`
 - pachetul `fast-alpr` instalat
 - camera configurata la `ALPR_CAMERA`
-

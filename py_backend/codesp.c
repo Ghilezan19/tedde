@@ -1,297 +1,459 @@
-#include "Arduino_GFX_Library.h"
+// Tedde ESP32 firmware stored as .c in the repo, but this is Arduino C++ code.
+// Flash it as an Arduino sketch / .ino / .cpp source for ESP32.
+//
+// Hardware profile:
+// - ESP32 DevKitC / ESP32-WROOM-32D
+// - LCD1602 + I2C backpack (PCF8574/PCF8574A): SDA GPIO21, SCL GPIO22
+// - DHT11 (temperatură / umiditate) on GPIO18
+// - Fan / ventilator (relay) on GPIO4 (active HIGH)
+// - Trigger button on GPIO25 to GND (INPUT_PULLUP)
+//
+// Note: this firmware tolerates the current direct ESP32(3.3V) -> backpack(5V)
+// I2C wiring, but that is not the ideal electrical setup. If the LCD is unstable,
+// add a bidirectional level shifter on SDA/SCL.
+
+#include <Arduino.h>
+#include <ArduinoJson.h>
 #include <DHT.h>
-#include <WiFi.h>
 #include <HTTPClient.h>
+#include <LiquidCrystal_I2C.h>
+#include <WiFi.h>
+#include <Wire.h>
 
 // =====================================================
-// WiFi / HTTP
+// User configuration
 // =====================================================
-const char* WIFI_SSID = "Ghile";
-const char* WIFI_PASS = "ghilezan";
-// IP-ul PC-ului unde rulează FastAPI (uvicorn pe portul 8000)
-// Verifică cu: ipconfig getifaddr en0  (pe Mac)
-const char* SERVER_BASE = "http://10.27.252.192:8000";
-// Construite în setup() din SERVER_BASE
-char POST_URL[128];
-char CONFIG_URL[128];
+static const char *WIFI_SSID = "Ghile";
+static const char *WIFI_PASS = "ghilezan";
+static const char *SERVER_BASE = "http://10.27.252.192:8000";
+
+static const uint8_t LCD_SDA_PIN = 21;
+static const uint8_t LCD_SCL_PIN = 22;
+static const uint8_t LCD_COLUMNS = 16;
+static const uint8_t LCD_ROWS = 2;
+
+static const uint8_t DHT_PIN = 18;
+static const uint8_t DHT_TYPE = DHT11;
+static const uint8_t FAN_PIN = 4;
+static const uint8_t BUTTON_PIN = 25;
+
+static const int COUNTDOWN_DEFAULT_SECONDS = 30;
+static const int FAN_ON_TEMP_C = 40;
+static const int FAN_OFF_TEMP_C = 35;
+
+static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000UL;
+static const unsigned long LCD_RESCAN_INTERVAL_MS = 10000UL;
+static const unsigned long STATUS_POLL_INTERVAL_MS = 1000UL;
+static const unsigned long CONFIG_REFRESH_INTERVAL_MS = 60000UL;
+static const unsigned long TEMP_READ_INTERVAL_MS = 5000UL;
+static const unsigned long PAGE_ROTATE_INTERVAL_MS = 2500UL;
+static const unsigned long BUTTON_DEBOUNCE_MS = 45UL;
+static const unsigned long MESSAGE_DURATION_MS = 1600UL;
+static const unsigned long SERVER_STALE_AFTER_MS = 4000UL;
+static const uint16_t HTTP_TIMEOUT_MS = 1500;
 
 // =====================================================
-// DHT11
+// Backend URLs
 // =====================================================
-#define DHTPIN   4
-#define DHTTYPE  DHT11
-DHT dht(DHTPIN, DHTTYPE);
+char COUNTER_START_URL[160];
+char ESP_CONFIG_URL[160];
+char WORKFLOW_STATUS_URL[160];
 
 // =====================================================
-// Ventilatoare cu histerezis
-// Pornesc la 40, se opresc la 35
+// Device state
 // =====================================================
-#define FAN_PIN        19
-#define FAN_ON_TEMP    40
-#define FAN_OFF_TEMP   35
+enum DeviceState {
+  STATE_BOOT,
+  STATE_LCD_INIT,
+  STATE_WIFI_CONNECTING,
+  STATE_IDLE_READY,
+  STATE_TRIGGER_POSTING,
+  STATE_RECORDING,
+  STATE_DEGRADED,
+};
+
+enum UiPage {
+  PAGE_STATUS = 0,
+  PAGE_ENV = 1,
+};
+
+struct TempStatus {
+  bool valid;
+  int celsius;
+};
+
+struct WorkflowStatus {
+  bool busy;
+  int remainingSeconds;
+  int durationSeconds;
+  char eventId[64];
+  char selectedPlate[32];
+  char error[64];
+};
+
+struct OverlayMessage {
+  bool active;
+  char line1[17];
+  char line2[17];
+  unsigned long untilMs;
+};
+
+enum PostTriggerResult {
+  POST_RESULT_TRIGGERED,
+  POST_RESULT_BUSY,
+  POST_RESULT_FAILED,
+};
 
 // =====================================================
-// Buton countdown  (secunde — sincronizat cu GET /api/esp/config dacă reușește)
+// Globals
 // =====================================================
-#define BUTTON_PIN       23
-#define COUNTDOWN_DEFAULT 30
+DHT dht(DHT_PIN, DHT_TYPE);
+LiquidCrystal_I2C *lcd = nullptr;
+uint8_t lcdAddress = 0;
+bool lcdReady = false;
 
-// =====================================================
-// LCD pins - Waveshare ESP32-C6-LCD-1.47
-// =====================================================
-#define TFT_MOSI  6
-#define TFT_SCLK  7
-#define TFT_CS    14
-#define TFT_DC    15
-#define TFT_RST   21
-#define TFT_BL    22
+DeviceState deviceState = STATE_BOOT;
+UiPage currentPage = PAGE_STATUS;
+OverlayMessage overlay = {false, "", "", 0};
+WorkflowStatus workflow = {false, 0, 0, "", "", ""};
+TempStatus temperature = {false, 0};
 
-// =====================================================
-// Culori RGB565
-// =====================================================
-#define BLACK       0x0000
-#define WHITE       0xFFFF
-#define RED         0xF800
-#define GREEN       0x07E0
-#define BLUE        0x001F
-#define CYAN        0x07FF
-#define YELLOW      0xFFE0
-#define ORANGE      0xFD20
-#define DARKGRAY    0x4208
-#define LIGHTGRAY   0xC618
-#define MIDGRAY     0x8410
-#define NAVY        0x0010
-#define BG          0x1082
-#define CARD        0x18C3
+bool fanEnabled = false;
+bool triggerInFlight = false;
+bool configLoaded = false;
+bool lastWiFiConnected = false;
+bool lastServerReachable = false;
+bool lastTempValid = true;
 
-// =====================================================
-// Display
-// =====================================================
-Arduino_DataBus *bus = new Arduino_ESP32SPI(
-  TFT_DC,
-  TFT_CS,
-  TFT_SCLK,
-  TFT_MOSI,
-  GFX_NOT_DEFINED
-);
+int countdownSeconds = COUNTDOWN_DEFAULT_SECONDS;
+int recordingDurationSeconds = COUNTDOWN_DEFAULT_SECONDS;
 
-Arduino_GFX *gfx = new Arduino_ST7789(
-  bus,
-  TFT_RST,
-  0,
-  true,
-  172,
-  320,
-  34,
-  0,
-  34,
-  0
-);
+bool fallbackRecordingActive = false;
+int fallbackRemainingSeconds = 0;
+unsigned long fallbackLastTickMs = 0;
 
-// =====================================================
-// Variabile
-// =====================================================
-int lastTemp = -1000;
-bool fanState = false;
-bool lastFanStateDrawn = false;
-
+unsigned long lastWiFiAttemptMs = 0;
+unsigned long lastLcdScanMs = 0;
+unsigned long lastStatusPollMs = 0;
+unsigned long lastConfigRefreshMs = 0;
 unsigned long lastTempReadMs = 0;
-unsigned long lastCountdownMs = 0;
-unsigned long lastWifiRetryMs = 0;
+unsigned long lastPageSwitchMs = 0;
+unsigned long lastBackendSuccessMs = 0;
+unsigned long lastButtonChangeMs = 0;
 
-bool countdownRunning = false;
-// Valoare afișată / trimisă la server (aceeași ca RECORDING_DURATION sau ESP_COUNTDOWN din .env)
-int countdownStartSeconds = COUNTDOWN_DEFAULT;
-int countdownValue = COUNTDOWN_DEFAULT;
+int lastRawButtonState = HIGH;
+int debouncedButtonState = HIGH;
 
-int lastButtonState = HIGH;
-int currentButtonState = HIGH;
-
-// =====================================================
-// Helpers UI
-// =====================================================
-void drawCenteredTextInBox(const String &text, int x, int y, int w, int h, int size, uint16_t color, uint16_t bg)
-{
-  int16_t x1, y1;
-  uint16_t tw, th;
-
-  gfx->setTextSize(size);
-  gfx->getTextBounds(text, 0, 0, &x1, &y1, &tw, &th);
-
-  int cx = x + (w - tw) / 2;
-  int cy = y + (h - th) / 2;
-
-  gfx->setTextColor(color, bg);
-  gfx->setCursor(cx, cy);
-  gfx->print(text);
-}
-
-void drawLabel(const String &text, int x, int y, uint16_t color, uint16_t bg, int size = 1)
-{
-  gfx->setTextSize(size);
-  gfx->setTextColor(color, bg);
-  gfx->setCursor(x, y);
-  gfx->print(text);
-}
-
-uint16_t getTempColor(int t)
-{
-  if (t >= 40) return RED;
-  if (t >= 35) return ORANGE;
-  if (t >= 20) return GREEN;
-  if (t >= 10) return CYAN;
-  return BLUE;
-}
-
-void drawRoundedCard(int x, int y, int w, int h, uint16_t fillColor)
-{
-  gfx->fillRoundRect(x, y, w, h, 14, fillColor);
-  gfx->drawRoundRect(x, y, w, h, 14, MIDGRAY);
-}
+char lastRenderedLine1[17] = "";
+char lastRenderedLine2[17] = "";
 
 // =====================================================
-// UI
+// Utility helpers
 // =====================================================
-void drawHeader()
-{
-  gfx->fillRoundRect(8, 8, 304, 28, 10, NAVY);
-  drawCenteredTextInBox("TEDDE AUTO CAMERA 1", 8, 8, 304, 28, 2, WHITE, NAVY);
+void copyText16(char *dest, const char *src) {
+  if (!dest) return;
+  if (!src) src = "";
+  size_t i = 0;
+  for (; i < 16 && src[i] != '\0'; ++i) {
+    dest[i] = src[i];
+  }
+  for (; i < 16; ++i) {
+    dest[i] = ' ';
+  }
+  dest[16] = '\0';
 }
 
-void drawStaticLayout()
-{
-  gfx->fillScreen(BG);
-
-  drawHeader();
-
-  drawRoundedCard(10, 48, 145, 92, CARD);
-  drawLabel("TEMPERATURA", 24, 60, LIGHTGRAY, CARD, 1);
-
-  drawRoundedCard(165, 48, 145, 92, CARD);
-  drawLabel("COUNTDOWN", 192, 60, LIGHTGRAY, CARD, 1);
-
-  drawRoundedCard(10, 146, 300, 18, DARKGRAY);
-
-  drawLabel("DHT11 GPIO4 | FAN GPIO19 | BTN GPIO23", 12, 38, LIGHTGRAY, BG, 1);
+void copyTextSized(char *dest, size_t destSize, const char *src) {
+  if (!dest || destSize == 0) return;
+  if (!src) src = "";
+  size_t i = 0;
+  for (; i + 1 < destSize && src[i] != '\0'; ++i) {
+    dest[i] = src[i];
+  }
+  dest[i] = '\0';
 }
 
-void drawTemperature(int t)
-{
-  gfx->fillRect(22, 80, 120, 40, CARD);
-
-  String tempText = String(t) + " C";
-  drawCenteredTextInBox(tempText, 18, 78, 128, 42, 3, getTempColor(t), CARD);
-
-  gfx->fillRoundRect(24, 122, 118, 8, 4, DARKGRAY);
-
-  int barW = map(t, 0, 50, 0, 118);
-  if (barW < 0) barW = 0;
-  if (barW > 118) barW = 118;
-
-  gfx->fillRoundRect(24, 122, barW, 8, 4, getTempColor(t));
+bool isWiFiConnected() {
+  return WiFi.status() == WL_CONNECTED;
 }
 
-void drawCountdown(int value, bool running)
-{
-  gfx->fillRect(177, 76, 120, 48, CARD);
+bool isServerReachable() {
+  if (!isWiFiConnected()) {
+    return false;
+  }
+  unsigned long now = millis();
+  return lastBackendSuccessMs != 0 && (now - lastBackendSuccessMs) <= SERVER_STALE_AFTER_MS;
+}
 
-  uint16_t color = WHITE;
-  if (value <= 5 && running) color = RED;
-  else if (value <= 10 && running) color = ORANGE;
-  else if (running) color = CYAN;
-  else color = LIGHTGRAY;
+bool isWorkflowBusyDerived() {
+  if (workflow.busy && isServerReachable()) {
+    return true;
+  }
+  return fallbackRecordingActive && fallbackRemainingSeconds > 0;
+}
 
-  drawCenteredTextInBox(String(value), 173, 74, 128, 46, 4, color, CARD);
+int currentRemainingSeconds() {
+  if (workflow.busy && isServerReachable()) {
+    return workflow.remainingSeconds;
+  }
+  if (fallbackRecordingActive) {
+    return fallbackRemainingSeconds;
+  }
+  return countdownSeconds;
+}
 
-  gfx->fillRect(178, 120, 118, 12, CARD);
-  if (running) {
-    drawCenteredTextInBox("RUNNING", 178, 120, 118, 12, 1, GREEN, CARD);
-  } else {
-    drawCenteredTextInBox("PRESS BTN", 178, 120, 118, 12, 1, YELLOW, CARD);
+void setDeviceStateFromSignals() {
+  if (!lcdReady) {
+    deviceState = STATE_LCD_INIT;
+    return;
+  }
+
+  if (triggerInFlight) {
+    deviceState = STATE_TRIGGER_POSTING;
+    return;
+  }
+
+  if (!isWiFiConnected()) {
+    deviceState = STATE_WIFI_CONNECTING;
+    return;
+  }
+
+  if (isWorkflowBusyDerived()) {
+    deviceState = STATE_RECORDING;
+    return;
+  }
+
+  if (!isServerReachable() || !temperature.valid) {
+    deviceState = STATE_DEGRADED;
+    return;
+  }
+
+  deviceState = STATE_IDLE_READY;
+}
+
+void showOverlay(const char *line1, const char *line2, unsigned long durationMs = MESSAGE_DURATION_MS) {
+  copyText16(overlay.line1, line1);
+  copyText16(overlay.line2, line2);
+  overlay.active = true;
+  overlay.untilMs = millis() + durationMs;
+}
+
+void expireOverlayIfNeeded() {
+  if (overlay.active && millis() >= overlay.untilMs) {
+    overlay.active = false;
   }
 }
 
-void drawFanStatus(bool on)
-{
-  uint16_t bgColor = on ? RED : GREEN;
-
-  gfx->fillRoundRect(12, 148, 296, 14, 8, bgColor);
-
-  String text;
-  if (on) text = "VENTILATOARE: PORNITE";
-  else    text = "VENTILATOARE: OPRITE";
-
-  drawCenteredTextInBox(text, 12, 148, 296, 14, 1, WHITE, bgColor);
+void markBackendSuccess() {
+  lastBackendSuccessMs = millis();
 }
 
-void drawError()
-{
-  gfx->fillRect(22, 80, 120, 40, CARD);
-  drawCenteredTextInBox("ERROR", 18, 82, 128, 34, 2, RED, CARD);
-}
-
-void drawStartup()
-{
-  drawStaticLayout();
-  drawCenteredTextInBox("-- C", 18, 78, 128, 42, 3, WHITE, CARD);
-  drawCountdown(countdownStartSeconds, false);
-  drawFanStatus(false);
+void clearWorkflowStrings() {
+  workflow.eventId[0] = '\0';
+  workflow.selectedPlate[0] = '\0';
+  workflow.error[0] = '\0';
 }
 
 // =====================================================
-// WiFi / POST
+// LCD / I2C
 // =====================================================
-void connectWiFi()
-{
+uint8_t scanForLcdAddress() {
+  for (uint8_t address = 0x03; address <= 0x77; ++address) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      return address;
+    }
+  }
+  return 0;
+}
+
+void destroyLcd() {
+  if (lcd != nullptr) {
+    delete lcd;
+    lcd = nullptr;
+  }
+  lcdReady = false;
+  lcdAddress = 0;
+  lastRenderedLine1[0] = '\0';
+  lastRenderedLine2[0] = '\0';
+}
+
+bool initLcdFromBus() {
+  uint8_t address = scanForLcdAddress();
+  if (address == 0) {
+    destroyLcd();
+    Serial.println("[LCD] No I2C device found for LCD1602 backpack");
+    return false;
+  }
+
+  destroyLcd();
+  lcd = new LiquidCrystal_I2C(address, LCD_COLUMNS, LCD_ROWS);
+  lcd->init();
+  lcd->backlight();
+  lcd->clear();
+
+  lcdAddress = address;
+  lcdReady = true;
+  Serial.printf("[LCD] Initialized on I2C address 0x%02X\n", lcdAddress);
+  showOverlay("BOOT", "TEDDE READY", 1800UL);
+  return true;
+}
+
+void maintainLcd() {
+  if (lcdReady) {
+    return;
+  }
+  unsigned long now = millis();
+  if (lastLcdScanMs != 0 && (now - lastLcdScanMs) < LCD_RESCAN_INTERVAL_MS) {
+    return;
+  }
+  lastLcdScanMs = now;
+  initLcdFromBus();
+}
+
+void renderLcdLines(const char *line1, const char *line2, bool force = false) {
+  if (!lcdReady || lcd == nullptr) {
+    return;
+  }
+
+  char out1[17];
+  char out2[17];
+  copyText16(out1, line1);
+  copyText16(out2, line2);
+
+  if (!force && strcmp(out1, lastRenderedLine1) == 0 && strcmp(out2, lastRenderedLine2) == 0) {
+    return;
+  }
+
+  lcd->setCursor(0, 0);
+  lcd->print(out1);
+  lcd->setCursor(0, 1);
+  lcd->print(out2);
+
+  copyTextSized(lastRenderedLine1, sizeof(lastRenderedLine1), out1);
+  copyTextSized(lastRenderedLine2, sizeof(lastRenderedLine2), out2);
+}
+
+void buildStatusPage(char *line1, char *line2) {
+  const char *recText = isWorkflowBusyDerived() ? "REC" : "NOREC";
+  const char *wifiText = isWiFiConnected() ? "OK" : "--";
+  const char *serverText = isServerReachable() ? "OK" : "--";
+
+  snprintf(line1, 17, "%s W:%s S:%s", recText, wifiText, serverText);
+  if (isWorkflowBusyDerived()) {
+    snprintf(line2, 17, "LEFT %4ds", currentRemainingSeconds());
+  } else {
+    snprintf(line2, 17, "READY %3ds", countdownSeconds);
+  }
+}
+
+void buildEnvPage(char *line1, char *line2) {
+  if (temperature.valid) {
+    snprintf(line1, 17, "TEMP %2dC", temperature.celsius);
+  } else {
+    snprintf(line1, 17, "TEMP ERR");
+  }
+
+  snprintf(line2, 17, "FAN %s", fanEnabled ? "ON" : "OFF");
+}
+
+void rotatePageIfNeeded() {
+  if (overlay.active) {
+    return;
+  }
+
+  unsigned long now = millis();
+  if (lastPageSwitchMs == 0) {
+    lastPageSwitchMs = now;
+    return;
+  }
+  if ((now - lastPageSwitchMs) < PAGE_ROTATE_INTERVAL_MS) {
+    return;
+  }
+
+  lastPageSwitchMs = now;
+  currentPage = (currentPage == PAGE_STATUS) ? PAGE_ENV : PAGE_STATUS;
+}
+
+void renderDisplay() {
+  if (!lcdReady) {
+    return;
+  }
+
+  expireOverlayIfNeeded();
+  rotatePageIfNeeded();
+
+  char line1[17];
+  char line2[17];
+
+  if (overlay.active) {
+    copyTextSized(line1, sizeof(line1), overlay.line1);
+    copyTextSized(line2, sizeof(line2), overlay.line2);
+    renderLcdLines(line1, line2);
+    return;
+  }
+
+  if (currentPage == PAGE_STATUS) {
+    buildStatusPage(line1, line2);
+  } else {
+    buildEnvPage(line1, line2);
+  }
+
+  renderLcdLines(line1, line2);
+}
+
+// =====================================================
+// WiFi
+// =====================================================
+void beginWiFiConnect() {
+  Serial.printf("[WiFi] Connecting to %s\n", WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+  lastWiFiAttemptMs = millis();
+}
 
-  Serial.print("Conectare WiFi");
-  unsigned long startMs = millis();
+void maintainWiFi() {
+  bool connected = isWiFiConnected();
+  unsigned long now = millis();
 
-  while (WiFi.status() != WL_CONNECTED && millis() - startMs < 10000) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
+  if (!connected) {
+    if (lastWiFiConnected) {
+      Serial.println("[WiFi] Lost connection");
+      showOverlay("WIFI FAIL", "RECONNECTING");
+    }
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("WiFi conectat. IP: ");
+    if (lastWiFiAttemptMs == 0 || (now - lastWiFiAttemptMs) >= WIFI_RETRY_INTERVAL_MS) {
+      beginWiFiConnect();
+    }
+  } else if (!lastWiFiConnected) {
+    Serial.print("[WiFi] Connected. IP: ");
     Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("WiFi nereusit");
+    lastConfigRefreshMs = 0;
+    lastStatusPollMs = 0;
   }
+
+  lastWiFiConnected = connected;
 }
 
-void ensureWiFi()
-{
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  if (millis() - lastWifiRetryMs >= 10000UL) {
-    lastWifiRetryMs = millis();
-    Serial.println("Reincerc conectarea la WiFi...");
-    WiFi.disconnect();
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-  }
-}
-
-/**
- * Citește countdown_seconds de pe backend (.env) ca LCD și înregistrarea să fie aliniate.
- * Dacă request-ul eșuează, rămâne COUNTDOWN_DEFAULT.
- */
-bool fetchTimerFromBackend()
-{
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Config timer: fara WiFi");
+// =====================================================
+// HTTP / backend
+// =====================================================
+bool fetchConfigFromBackend() {
+  if (!isWiFiConnected()) {
     return false;
   }
 
   HTTPClient http;
-  http.begin(CONFIG_URL);
-  int httpCode = http.GET();
+  http.setTimeout(HTTP_TIMEOUT_MS);
+  if (!http.begin(ESP_CONFIG_URL)) {
+    Serial.println("[HTTP] Failed to begin /api/esp/config");
+    return false;
+  }
 
-  if (httpCode != 200) {
-    Serial.printf("Config timer HTTP: %d\n", httpCode);
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[HTTP] /api/esp/config returned %d\n", code);
     http.end();
     return false;
   }
@@ -299,202 +461,380 @@ bool fetchTimerFromBackend()
   String body = http.getString();
   http.end();
 
-  int keyPos = body.indexOf("\"countdown_seconds\"");
-  if (keyPos < 0) {
-    Serial.println("Config timer: lipseste countdown_seconds in JSON");
+  StaticJsonDocument<256> doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    Serial.printf("[JSON] /api/esp/config parse failed: %s\n", err.c_str());
     return false;
   }
 
-  int colon = body.indexOf(':', keyPos);
-  if (colon < 0) return false;
+  int fetchedCountdown = doc["countdown_seconds"] | 0;
+  int fetchedRecording = doc["recording_duration_seconds"] | 0;
 
-  String tail = body.substring(colon + 1);
-  tail.trim();
-  int v = tail.toInt();
-  if (v <= 0 || v > 86400) {
-    Serial.printf("Config timer: valoare invalida %d\n", v);
-    return false;
+  if (fetchedCountdown > 0) {
+    countdownSeconds = fetchedCountdown;
+  }
+  if (fetchedRecording > 0) {
+    recordingDurationSeconds = fetchedRecording;
+  }
+  if (countdownSeconds <= 0) {
+    countdownSeconds = COUNTDOWN_DEFAULT_SECONDS;
+  }
+  if (recordingDurationSeconds <= 0) {
+    recordingDurationSeconds = countdownSeconds;
   }
 
-  countdownStartSeconds = v;
-  if (!countdownRunning) {
-    countdownValue = countdownStartSeconds;
-  }
-  Serial.printf("Timer sincronizat de pe server: %d s\n", countdownStartSeconds);
+  configLoaded = true;
+  lastConfigRefreshMs = millis();
+  markBackendSuccess();
+
+  Serial.printf(
+    "[HTTP] /api/esp/config ok: countdown=%d recording=%d\n",
+    countdownSeconds,
+    recordingDurationSeconds
+  );
   return true;
 }
 
-void sendCounterStartPost()
-{
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("POST ratat: fara WiFi");
-    return;
+bool fetchWorkflowStatusFromBackend() {
+  if (!isWiFiConnected()) {
+    return false;
   }
 
   HTTPClient http;
-  http.begin(POST_URL);
-  http.addHeader("Content-Type", "application/json");
-
-  String payload = "{";
-  payload += "\"event\":\"counter_started\",";
-  payload += "\"value\":";
-  payload += String(countdownStartSeconds);
-  payload += "}";
-
-  int httpCode = http.POST(payload);
-
-  Serial.print("HTTP POST code: ");
-  Serial.println(httpCode);
-
-  if (httpCode > 0) {
-    String response = http.getString();
-    Serial.println("Response:");
-    Serial.println(response);
-  } else {
-    Serial.print("Eroare HTTP: ");
-    Serial.println(http.errorToString(httpCode));
+  http.setTimeout(HTTP_TIMEOUT_MS);
+  if (!http.begin(WORKFLOW_STATUS_URL)) {
+    Serial.println("[HTTP] Failed to begin /api/workflow/status");
+    return false;
   }
 
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[HTTP] /api/workflow/status returned %d\n", code);
+    http.end();
+    return false;
+  }
+
+  String body = http.getString();
   http.end();
-}
 
-// =====================================================
-// Logică temperatură + histerezis ventilatoare
-// =====================================================
-void updateFanWithHysteresis(int tempInt)
-{
-  if (!fanState && tempInt >= FAN_ON_TEMP) {
-    fanState = true;
-  } else if (fanState && tempInt <= FAN_OFF_TEMP) {
-    fanState = false;
+  StaticJsonDocument<768> doc;
+  DeserializationError err = deserializeJson(doc, body);
+  if (err) {
+    Serial.printf("[JSON] /api/workflow/status parse failed: %s\n", err.c_str());
+    return false;
   }
 
-  digitalWrite(FAN_PIN, fanState ? HIGH : LOW);
+  workflow.busy = doc["busy"] | false;
+  workflow.remainingSeconds = doc["remaining_seconds"] | 0;
+  workflow.durationSeconds = doc["duration_seconds"] | 0;
+  const char *eventId = doc["event_id"];
+  const char *selectedPlate = doc["selected_plate"];
+  const char *errorText = doc["error"];
+  copyTextSized(workflow.eventId, sizeof(workflow.eventId), eventId ? eventId : "");
+  copyTextSized(workflow.selectedPlate, sizeof(workflow.selectedPlate), selectedPlate ? selectedPlate : "");
+  copyTextSized(workflow.error, sizeof(workflow.error), errorText ? errorText : "");
 
-  if (fanState != lastFanStateDrawn) {
-    drawFanStatus(fanState);
-    lastFanStateDrawn = fanState;
+  if (workflow.busy) {
+    fallbackRecordingActive = true;
+    fallbackRemainingSeconds = workflow.remainingSeconds;
+    fallbackLastTickMs = millis();
+  } else {
+    fallbackRecordingActive = false;
+    fallbackRemainingSeconds = 0;
   }
+
+  markBackendSuccess();
+  lastStatusPollMs = millis();
+
+  Serial.printf(
+    "[HTTP] /api/workflow/status ok: busy=%s remaining=%d event=%s plate=%s\n",
+    workflow.busy ? "true" : "false",
+    workflow.remainingSeconds,
+    workflow.eventId,
+    workflow.selectedPlate
+  );
+  return true;
 }
 
-void readTemperatureAndControlFan()
-{
-  float t = dht.readTemperature();
-
-  if (isnan(t)) {
-    Serial.println("Eroare citire DHT11");
-    digitalWrite(FAN_PIN, LOW);
-    fanState = false;
-    drawError();
-    drawFanStatus(false);
-    lastFanStateDrawn = false;
+void tickFallbackRecording() {
+  if (!fallbackRecordingActive || fallbackRemainingSeconds <= 0) {
+    fallbackRecordingActive = false;
     return;
   }
 
-  int tempInt = (int)t;
+  unsigned long now = millis();
+  if (fallbackLastTickMs == 0) {
+    fallbackLastTickMs = now;
+    return;
+  }
 
-  updateFanWithHysteresis(tempInt);
+  while ((now - fallbackLastTickMs) >= 1000UL && fallbackRemainingSeconds > 0) {
+    fallbackRemainingSeconds--;
+    fallbackLastTickMs += 1000UL;
+  }
 
-  Serial.print("Temperatura: ");
-  Serial.print(tempInt);
-  Serial.print(" C | Ventilatoare: ");
-  Serial.println(fanState ? "ON" : "OFF");
-
-  if (tempInt != lastTemp) {
-    drawTemperature(tempInt);
-    lastTemp = tempInt;
+  if (fallbackRemainingSeconds <= 0) {
+    fallbackRemainingSeconds = 0;
+    fallbackRecordingActive = false;
   }
 }
 
-// =====================================================
-// Buton + countdown
-// =====================================================
-void handleButton()
-{
-  currentButtonState = digitalRead(BUTTON_PIN);
+void refreshBackendSignals() {
+  unsigned long now = millis();
 
-  if (lastButtonState == HIGH && currentButtonState == LOW) {
-    countdownRunning = true;
-    countdownValue = countdownStartSeconds;
-    lastCountdownMs = millis();
-    drawCountdown(countdownValue, true);
-
-    Serial.println("Countdown pornit");
-    sendCounterStartPost();
-  }
-
-  lastButtonState = currentButtonState;
-}
-
-void handleCountdown()
-{
-  if (!countdownRunning) return;
-
-  if (millis() - lastCountdownMs >= 1000) {
-    lastCountdownMs = millis();
-    countdownValue--;
-
-    if (countdownValue <= 0) {
-      countdownValue = 0;
-      countdownRunning = false;
+  if (isWiFiConnected()) {
+    bool shouldPollStatus = lastStatusPollMs == 0 || (now - lastStatusPollMs) >= STATUS_POLL_INTERVAL_MS;
+    if (shouldPollStatus) {
+      fetchWorkflowStatusFromBackend();
     }
 
-    drawCountdown(countdownValue, countdownRunning);
-
-    Serial.print("Countdown: ");
-    Serial.println(countdownValue);
+    bool shouldRefreshConfig = !configLoaded || (!isWorkflowBusyDerived() && (lastConfigRefreshMs == 0 || (now - lastConfigRefreshMs) >= CONFIG_REFRESH_INTERVAL_MS));
+    if (shouldRefreshConfig) {
+      fetchConfigFromBackend();
+    }
   }
+
+  tickFallbackRecording();
+}
+
+PostTriggerResult postCounterStart() {
+  if (!isWiFiConnected()) {
+    Serial.println("[HTTP] POST /counter-start skipped: no WiFi");
+    return POST_RESULT_FAILED;
+  }
+
+  HTTPClient http;
+  http.setTimeout(HTTP_TIMEOUT_MS);
+  if (!http.begin(COUNTER_START_URL)) {
+    Serial.println("[HTTP] Failed to begin /counter-start");
+    return POST_RESULT_FAILED;
+  }
+
+  http.addHeader("Content-Type", "application/json");
+
+  StaticJsonDocument<128> requestDoc;
+  requestDoc["event"] = "counter_started";
+  requestDoc["value"] = countdownSeconds;
+
+  String payload;
+  serializeJson(requestDoc, payload);
+
+  int code = http.POST(payload);
+  if (code <= 0) {
+    Serial.printf("[HTTP] POST /counter-start failed: %s\n", http.errorToString(code).c_str());
+    http.end();
+    return POST_RESULT_FAILED;
+  }
+
+  String body = http.getString();
+  http.end();
+
+  StaticJsonDocument<256> responseDoc;
+  DeserializationError err = deserializeJson(responseDoc, body);
+  if (err) {
+    Serial.printf("[JSON] /counter-start parse failed: %s\n", err.c_str());
+    return POST_RESULT_FAILED;
+  }
+
+  const char *status = responseDoc["status"];
+  int responseDuration = responseDoc["recording_seconds"] | 0;
+  const char *responseEvent = responseDoc["event"];
+  copyTextSized(workflow.eventId, sizeof(workflow.eventId), responseEvent ? responseEvent : "");
+
+  if (status != nullptr && strcmp(status, "triggered") == 0) {
+    if (responseDuration > 0) {
+      fallbackRecordingActive = true;
+      fallbackRemainingSeconds = responseDuration;
+    } else {
+      fallbackRecordingActive = true;
+      fallbackRemainingSeconds = countdownSeconds;
+    }
+    fallbackLastTickMs = millis();
+    workflow.busy = true;
+    workflow.remainingSeconds = fallbackRemainingSeconds;
+    markBackendSuccess();
+    Serial.printf("[HTTP] /counter-start triggered: %s\n", body.c_str());
+    return POST_RESULT_TRIGGERED;
+  }
+
+  if (status != nullptr && strcmp(status, "busy") == 0) {
+    Serial.printf("[HTTP] /counter-start busy: %s\n", body.c_str());
+    return POST_RESULT_BUSY;
+  }
+
+  Serial.printf("[HTTP] /counter-start unexpected response: %s\n", body.c_str());
+  return POST_RESULT_FAILED;
 }
 
 // =====================================================
-// Setup
+// Temperature / fan
 // =====================================================
-void setup()
-{
-  Serial.begin(115200);
-  dht.begin();
+void applyFanStateFromTemperature() {
+  if (!temperature.valid) {
+    fanEnabled = false;
+    digitalWrite(FAN_PIN, LOW);
+    return;
+  }
 
-  snprintf(POST_URL, sizeof(POST_URL), "%s/counter-start", SERVER_BASE);
-  snprintf(CONFIG_URL, sizeof(CONFIG_URL), "%s/api/esp/config", SERVER_BASE);
+  if (!fanEnabled && temperature.celsius >= FAN_ON_TEMP_C) {
+    fanEnabled = true;
+  } else if (fanEnabled && temperature.celsius <= FAN_OFF_TEMP_C) {
+    fanEnabled = false;
+  }
+
+  digitalWrite(FAN_PIN, fanEnabled ? HIGH : LOW);
+}
+
+void readTemperatureIfNeeded() {
+  unsigned long now = millis();
+  if (lastTempReadMs != 0 && (now - lastTempReadMs) < TEMP_READ_INTERVAL_MS) {
+    return;
+  }
+  lastTempReadMs = now;
+
+  float measured = dht.readTemperature();
+  if (isnan(measured)) {
+    temperature.valid = false;
+    temperature.celsius = 0;
+    applyFanStateFromTemperature();
+    Serial.println("[DHT] Temperature read failed");
+    return;
+  }
+
+  temperature.valid = true;
+  temperature.celsius = static_cast<int>(measured + (measured >= 0 ? 0.5f : -0.5f));
+  applyFanStateFromTemperature();
+  Serial.printf("[DHT] Temperature=%dC fan=%s\n", temperature.celsius, fanEnabled ? "ON" : "OFF");
+}
+
+// =====================================================
+// Button handling
+// =====================================================
+void handleTriggerButton() {
+  int rawState = digitalRead(BUTTON_PIN);
+  unsigned long now = millis();
+
+  if (rawState != lastRawButtonState) {
+    lastButtonChangeMs = now;
+    lastRawButtonState = rawState;
+  }
+
+  if ((now - lastButtonChangeMs) < BUTTON_DEBOUNCE_MS) {
+    return;
+  }
+
+  if (rawState == debouncedButtonState) {
+    return;
+  }
+
+  debouncedButtonState = rawState;
+  if (debouncedButtonState != LOW) {
+    return;
+  }
+
+  if (triggerInFlight || isWorkflowBusyDerived()) {
+    showOverlay("BUSY", "WORKFLOW ON");
+    Serial.println("[BTN] Ignored: workflow already active");
+    return;
+  }
+
+  if (!isWiFiConnected()) {
+    showOverlay("WIFI FAIL", "NO TRIGGER");
+    Serial.println("[BTN] Ignored: no WiFi");
+    return;
+  }
+
+  triggerInFlight = true;
+  showOverlay("POSTING", "WAIT...");
+  setDeviceStateFromSignals();
+
+  PostTriggerResult postResult = postCounterStart();
+  triggerInFlight = false;
+
+  if (postResult == POST_RESULT_BUSY) {
+    showOverlay("BUSY", "WORKFLOW ON");
+    setDeviceStateFromSignals();
+    return;
+  }
+
+  if (postResult != POST_RESULT_TRIGGERED) {
+    if (!isServerReachable() && isWiFiConnected()) {
+      showOverlay("SRV FAIL", "POST FAIL");
+    } else {
+      showOverlay("POST FAIL", "TRY AGAIN");
+    }
+    setDeviceStateFromSignals();
+    return;
+  }
+
+  showOverlay("POST OK", "CHECK REC");
+  if (!fetchWorkflowStatusFromBackend()) {
+    // Keep the short local fallback until the next successful poll.
+    Serial.println("[BTN] Trigger succeeded, waiting for status refresh fallback");
+  }
+  setDeviceStateFromSignals();
+}
+
+// =====================================================
+// Transition-based warnings
+// =====================================================
+void emitTransitionWarnings() {
+  bool wifiNow = isWiFiConnected();
+  bool serverNow = isServerReachable();
+  bool tempNow = temperature.valid;
+
+  if (wifiNow && !serverNow && lastServerReachable) {
+    showOverlay("SRV FAIL", "CHECK API");
+  }
+  if (!tempNow && lastTempValid) {
+    showOverlay("TEMP ERR", "FAN SAFE OFF");
+  }
+
+  lastServerReachable = serverNow;
+  lastTempValid = tempNow;
+}
+
+// =====================================================
+// Setup / loop
+// =====================================================
+void setup() {
+  Serial.begin(115200);
+
+  snprintf(COUNTER_START_URL, sizeof(COUNTER_START_URL), "%s/counter-start", SERVER_BASE);
+  snprintf(ESP_CONFIG_URL, sizeof(ESP_CONFIG_URL), "%s/api/esp/config", SERVER_BASE);
+  snprintf(WORKFLOW_STATUS_URL, sizeof(WORKFLOW_STATUS_URL), "%s/api/workflow/status", SERVER_BASE);
 
   pinMode(FAN_PIN, OUTPUT);
   digitalWrite(FAN_PIN, LOW);
-
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
+  Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN, 100000UL);
+  dht.begin();
 
-  if (!gfx->begin()) {
-    Serial.println("Eroare init display");
-    while (1) {
-      delay(100);
-    }
-  }
+  clearWorkflowStrings();
+  fallbackRemainingSeconds = countdownSeconds;
 
-  gfx->setRotation(1);
-  drawStartup();
+  deviceState = STATE_BOOT;
+  maintainLcd();
+  renderDisplay();
 
-  connectWiFi();
-
-  fetchTimerFromBackend();
-  drawCountdown(countdownStartSeconds, false);
-
-  readTemperatureAndControlFan();
-  lastTempReadMs = millis();
+  beginWiFiConnect();
+  readTemperatureIfNeeded();
+  fetchConfigFromBackend();
+  fetchWorkflowStatusFromBackend();
+  setDeviceStateFromSignals();
+  renderDisplay();
 }
 
-// =====================================================
-// Loop
-// =====================================================
-void loop()
-{
-  ensureWiFi();
-  handleButton();
-  handleCountdown();
-
-  if (millis() - lastTempReadMs >= 60000UL) {
-    lastTempReadMs = millis();
-    readTemperatureAndControlFan();
-  }
+void loop() {
+  maintainLcd();
+  maintainWiFi();
+  readTemperatureIfNeeded();
+  refreshBackendSignals();
+  emitTransitionWarnings();
+  handleTriggerButton();
+  setDeviceStateFromSignals();
+  renderDisplay();
+  delay(5);
 }

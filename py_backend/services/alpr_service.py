@@ -5,36 +5,14 @@ ALPR service wrapper around fast-alpr.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
-import time
 from pathlib import Path
 from typing import Any
 
 from config import settings
 
 logger = logging.getLogger(__name__)
-
-_AGENT_DEBUG_LOG = "/Users/maleticimiroslav/CamereTedde/tedde/.cursor/debug-e5dd89.log"
-
-
-def _agent_debug_log(hypothesis_id: str, location: str, message: str, data: dict[str, Any]) -> None:
-    # region agent log
-    payload = {
-        "sessionId": "e5dd89",
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": int(time.time() * 1000),
-    }
-    try:
-        with open(_AGENT_DEBUG_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    except OSError:
-        pass
-    # endregion
 
 
 def normalize_plate_text(text: str) -> str:
@@ -102,14 +80,22 @@ class ALPRService:
 
                 thresh = float(settings.alpr_detector_conf_thresh)
                 cpu_only = int(settings.alpr_detector_cpu_only) == 1
+                det_model = settings.alpr_detector_model
+                ocr_model = settings.alpr_ocr_model
                 logger.info(
-                    "[ALPR] Loading fast-alpr (detector_conf_thresh=%s, detector_cpu_only=%s)...",
+                    "[ALPR] Loading fast-alpr detector=%s ocr=%s thresh=%s cpu_only=%s",
+                    det_model,
+                    ocr_model,
                     thresh,
                     cpu_only,
                 )
 
                 def _make_alpr() -> Any:
-                    kw: dict[str, Any] = {"detector_conf_thresh": thresh}
+                    kw: dict[str, Any] = {
+                        "detector_model": det_model,
+                        "ocr_model": ocr_model,
+                        "detector_conf_thresh": thresh,
+                    }
                     if cpu_only:
                         # OCR pe același provider evită cazuri CoreML ciudate după detecție.
                         cpu = ["CPUExecutionProvider"]
@@ -130,39 +116,8 @@ class ALPRService:
                 "plates": [],
             }
 
-        # region agent log
-        try:
-            st = image_path.stat()
-            _agent_debug_log(
-                "H4",
-                "alpr_service.py:predict_image",
-                "image_before_predict",
-                {
-                    "path": str(image_path),
-                    "exists": image_path.is_file(),
-                    "size_bytes": st.st_size,
-                    "detector_conf_thresh": settings.alpr_detector_conf_thresh,
-                    "detector_cpu_only": int(settings.alpr_detector_cpu_only),
-                },
-            )
-        except OSError as e:
-            _agent_debug_log(
-                "H4",
-                "alpr_service.py:predict_image",
-                "image_stat_failed",
-                {"path": str(image_path), "error": str(e)},
-            )
-        # endregion
-
         model = await self._get_model()
         sync_meta, results = await asyncio.to_thread(_predict_image_sync, model, str(image_path))
-        # region agent log
-        _agent_debug_log(
-            "H8",
-            "alpr_service.py:predict_image",
-            "cv2_imread_and_predict",
-            sync_meta,
-        )
         if not sync_meta.get("imread_ok"):
             return {
                 "enabled": True,
@@ -171,39 +126,8 @@ class ALPRService:
                 "plates": [],
                 "load_error": "cv2 nu a putut citi imaginea (cale sau format invalid).",
             }
-        # endregion
 
         plates: list[dict[str, Any]] = []
-
-        # region agent log
-        _agent_debug_log(
-            "H1",
-            "alpr_service.py:predict_image",
-            "predict_raw_count",
-            {"n_results": len(results)},
-        )
-        for idx, item in enumerate(results[:12]):
-            det = getattr(item, "detection", None)
-            ocr = getattr(item, "ocr", None)
-            det_conf = float(det.confidence) if det is not None and hasattr(det, "confidence") else None
-            det_label = getattr(det, "label", None) if det is not None else None
-            ocr_text = (ocr.text or "")[:80] if ocr is not None else ""
-            ocr_has = ocr is not None and bool(getattr(ocr, "text", None))
-            _agent_debug_log(
-                "H2" if not ocr_has else "H3",
-                "alpr_service.py:predict_image",
-                "result_item",
-                {
-                    "idx": idx,
-                    "det_confidence": det_conf,
-                    "det_label": det_label,
-                    "ocr_present": ocr is not None,
-                    "ocr_text_len": len(ocr_text) if ocr_text else 0,
-                    "ocr_text_preview": ocr_text[:40] if ocr_text else None,
-                    "skipped_no_ocr_text": not (ocr and getattr(ocr, "text", None)),
-                },
-            )
-        # endregion
 
         for item in results:
             if not item.ocr or not item.ocr.text:
@@ -223,17 +147,6 @@ class ALPRService:
 
         plates.sort(key=lambda plate: plate["confidence"], reverse=True)
         selected = plates[0] if plates else None
-        # region agent log
-        _agent_debug_log(
-            "H5",
-            "alpr_service.py:predict_image",
-            "after_parse_plates",
-            {
-                "plates_kept": len(plates),
-                "selected": selected["plate"] if selected else None,
-            },
-        )
-        # endregion
         return {
             "enabled": True,
             "selected_plate": selected["plate"] if selected else None,

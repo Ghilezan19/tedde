@@ -7,8 +7,9 @@ import sys
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import startup_check
@@ -19,11 +20,13 @@ from camera.ptz import PTZClient
 from camera.recording import RecordingManager
 from config import settings
 from routes.camera_control import router as camera_control_router
-from routes.esp_config import router as esp_config_router
+from routes.customer_portal import router as customer_portal_router
+from routes.esp_config import render_help_esp1_page, router as esp_config_router
 from routes.recordings import router as recordings_router
 from routes.trigger import router as trigger_router
 from routes.web_api import router as web_api_router
 from services.alpr_service import ALPRService
+from services.customer_portal import CustomerPortalService
 from services.workflow import WorkflowService
 
 
@@ -46,6 +49,8 @@ async def lifespan(app: FastAPI):
     ir_client = IRClient()
     camera2_control = Camera2ControlClient()
     alpr_service = ALPRService()
+    customer_portal_service = CustomerPortalService()
+    await customer_portal_service.initialize()
     workflow = WorkflowService(
         recording_manager=recording_manager,
         alpr_service=alpr_service,
@@ -57,6 +62,7 @@ async def lifespan(app: FastAPI):
     app.state.ir_client = ir_client
     app.state.camera2_control = camera2_control
     app.state.alpr_service = alpr_service
+    app.state.customer_portal_service = customer_portal_service
     app.state.workflow = workflow
 
     if settings.auto_day_mode_on_start:
@@ -102,6 +108,13 @@ app.include_router(esp_config_router)
 app.include_router(recordings_router)
 app.include_router(camera_control_router)
 app.include_router(web_api_router)
+app.include_router(customer_portal_router)
+
+
+@app.get("/help-esp1", include_in_schema=False)
+async def help_esp1(request: Request) -> HTMLResponse:
+    """Bookmark: server base URL + optional ESP IP from .env (search \"help-esp1\")."""
+    return HTMLResponse(content=render_help_esp1_page(request))
 
 
 @app.get("/health", summary="Health check")

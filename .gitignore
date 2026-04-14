@@ -8,11 +8,19 @@ snapshots/*.jpeg
 snapshots/*.png
 recordings/*.mp4
 events/
+data/*.sqlite3
 
 __pycache__/
 py_backend/__pycache__/
 py_backend/camera/__pycache__/
 py_backend/routes/__pycache__/
 py_backend/services/__pycache__/
+py_backend/tools/__pycache__/
 
 .DS_Store
+
+# Orchestrator logs (lib/cmd_start.sh)
+logs/
+
+# Git worktrees
+.worktrees/
