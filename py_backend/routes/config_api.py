@@ -19,6 +19,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from config import settings
+from debug_agent_log import agent_log
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(settings.templates_dir_abs))
@@ -52,6 +53,39 @@ def _read_env() -> dict[str, str]:
             key, _, value = stripped.partition("=")
             result[key.strip()] = value.strip()
     return result
+
+
+def _safe_env_for_templates(env: dict[str, str]) -> dict[str, str]:
+    """
+    Empty or invalid numeric .env values break Jinja (e.g. ``|float`` on Configure page).
+    """
+    e = dict(env)
+
+    def _float_key(key: str, default: str) -> None:
+        raw = (e.get(key) or "").strip().replace(",", ".")
+        if not raw:
+            e[key] = default
+            return
+        try:
+            e[key] = str(float(raw))
+        except ValueError:
+            e[key] = default
+
+    def _int_range(key: str, default: str, lo: int, hi: int) -> None:
+        raw = (e.get(key) or "").strip().replace(",", ".")
+        if not raw:
+            e[key] = default
+            return
+        try:
+            iv = int(float(raw))
+            e[key] = str(max(lo, min(hi, iv)))
+        except ValueError:
+            e[key] = default
+
+    _float_key("ALPR_DETECTOR_CONF_THRESH", "0.1")
+    _float_key("ALPR_PREDICT_UPSCALE", "1.5")
+    _int_range("RECORDING_DURATION_SECONDS", "60", 5, 600)
+    return e
 
 
 def _write_env(new_values: dict[str, str]) -> None:
@@ -93,15 +127,24 @@ def _write_env(new_values: dict[str, str]) -> None:
 @router.get("/configure", response_class=HTMLResponse, include_in_schema=False)
 async def configure_page(request: Request) -> HTMLResponse:
     """Configure dashboard — no authentication required (local access only)."""
-    env = _read_env()
+    # #region agent log
+    agent_log(
+        hypothesis_id="A",
+        location="config_api.configure_page",
+        message="enter",
+        data={"env_file_exists": _ENV_FILE.exists()},
+    )
+    # #endregion
+    env = _safe_env_for_templates(_read_env())
     # Mask sensitive values
     masked: dict[str, str] = {}
     for k, v in env.items():
         masked[k] = "••••••••" if k in _SENSITIVE_KEYS else v
 
     return templates.TemplateResponse(
+        request,
         "configure.html",
-        {"request": request, "env": masked, "settings": settings},
+        {"env": masked},
     )
 
 

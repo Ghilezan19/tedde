@@ -784,16 +784,9 @@
         <div class="tab-panel" id="tab-alpr">
           <p class="section-label">Test ALPR</p>
           <p style="font-size:12px; color:#64748b; margin-bottom:14px; line-height:1.55">
-            Capturează un cadru de la cameră și rulează fast-alpr pe <code>alpr_test_last.jpg</code>.
+            Capturează un cadru de la <strong>camera 2 (față / PTZ)</strong> și rulează fast-alpr pe <code>alpr_test_last.jpg</code>.
             Pentru inferență, setează <code>ALPR_ENABLED=1</code> în <code>.env</code>.
           </p>
-          <div class="setting-group">
-            <label>Cameră</label>
-            <select id="alprCameraSelect">
-              <option value="1">Camera 1 (fixă)</option>
-              <option value="2">Camera 2 (PTZ)</option>
-            </select>
-          </div>
           <div class="setting-group">
             <label>Calitate snapshot</label>
             <select id="alprQualitySelect">
@@ -1194,10 +1187,6 @@ function showTab(name) {
   if (name === "info") { loadRecordings(); loadDeviceInfo(); loadEvents(); }
   if (name === "ptz" && currentCamera === 2) loadPresets();
   if (name === "image" && currentCamera === 2) loadImageSettings();
-  if (name === "alpr") {
-    const sel = document.getElementById("alprCameraSelect");
-    if (sel) sel.value = String(currentCamera);
-  }
   if (name === "portaltest") { portalTestOnTabShown(); }
 }
 
@@ -1442,7 +1431,6 @@ async function runAlprTest() {
   const statusEl = document.getElementById("alprStatusMsg");
   const resultsEl = document.getElementById("alprResults");
   const img = document.getElementById("alprPreviewImg");
-  const cam = parseInt(document.getElementById("alprCameraSelect").value, 10) || 1;
   const quality = document.getElementById("alprQualitySelect").value || "main";
   btn.disabled = true;
   statusEl.textContent = "Se capturează și rulează modelul…";
@@ -1453,7 +1441,7 @@ async function runAlprTest() {
     const r = await fetch("/api/alpr/test", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ camera: cam, quality }),
+      body: JSON.stringify({ quality }),
     });
     let data;
     try {

@@ -29,6 +29,7 @@ from fastapi.templating import Jinja2Templates
 
 import startup_check
 from config import settings
+from debug_agent_log import agent_log
 from services.auth_service import require_superadmin
 
 logger = logging.getLogger(__name__)
@@ -51,9 +52,18 @@ async def superadmin_page(
     request: Request,
     role: str = Depends(require_superadmin),
 ) -> HTMLResponse:
+    # #region agent log
+    agent_log(
+        hypothesis_id="D",
+        location="superadmin_api.superadmin_page",
+        message="render_superadmin",
+        data={"role": role},
+    )
+    # #endregion
     return templates.TemplateResponse(
+        request,
         "superadmin.html",
-        {"request": request, "role": role},
+        {"role": role},
     )
 
 

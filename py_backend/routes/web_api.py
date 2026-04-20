@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from camera.audio import AudioClient
@@ -137,7 +137,8 @@ async def api_snapshots() -> dict:
 
 
 class AlprTestBody(BaseModel):
-    camera: int = Field(default=1, ge=1, le=2)
+    model_config = ConfigDict(extra="ignore")
+
     quality: Literal["main", "sub"] = "main"
 
 
@@ -147,10 +148,11 @@ async def api_alpr_test(
     body: AlprTestBody = Body(default_factory=AlprTestBody),
 ) -> dict:
     payload = body
+    cam = int(settings.alpr_camera)
     filepath = settings.snapshot_dir_abs / "alpr_test_last.jpg"
     qual = "sub" if payload.quality == "sub" else "main"
     try:
-        await save_snapshot(camera=payload.camera, quality=qual, filepath=filepath)
+        await save_snapshot(camera=cam, quality=qual, filepath=filepath)
     except TimeoutError:
         return JSONResponse(
             status_code=504,
@@ -175,9 +177,9 @@ async def api_alpr_test(
         ):
             logger.info(
                 "[ALPR/test] Zero plates on sub snapshot cam=%s — retrying capture on main",
-                payload.camera,
+                cam,
             )
-            await save_snapshot(camera=payload.camera, quality="main", filepath=filepath)
+            await save_snapshot(camera=cam, quality="main", filepath=filepath)
             result = await alpr_service.predict_image(filepath)
             qual = "main"
             retried_main = True
@@ -191,7 +193,7 @@ async def api_alpr_test(
     ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     out = dict(result)
     out["snapshot_url"] = f"/snapshots/{filepath.name}?t={ts_ms}"
-    out["camera"] = payload.camera
+    out["camera"] = cam
     out["quality"] = qual
     out["alpr_retried_with_main"] = retried_main
     return out
@@ -200,10 +202,24 @@ async def api_alpr_test(
 @router.get("/api/status")
 async def api_status() -> dict:
     started = datetime.now(timezone.utc)
-    status = await probe_camera_status()
-    elapsed = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
-    status["camera"]["responseTime"] = f"{elapsed}ms"
-    return status
+    try:
+        status = await probe_camera_status()
+        elapsed = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+        status["camera"]["responseTime"] = f"{elapsed}ms"
+        return status
+    except Exception as exc:
+        logger.exception("[api/status] probe failed: %s", exc)
+        return {
+            "camera": {
+                "ip": settings.camera_ip,
+                "online": False,
+                "mainStream": settings.rtsp_main_path,
+                "subStream": settings.rtsp_sub_path,
+                "responseTime": "error",
+                "error": str(exc),
+            },
+            "stream": {"video": None, "audio": None},
+        }
 
 
 @router.get("/api/info")

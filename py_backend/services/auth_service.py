@@ -12,7 +12,6 @@ import logging
 from typing import Literal
 
 from fastapi import Cookie, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 
 from config import settings
@@ -78,12 +77,18 @@ def require_admin(request: Request) -> Role:
 def require_superadmin(request: Request) -> Role:
     """
     FastAPI dependency: require exactly superadmin role.
-    Redirects to /login on failure.
+    Redirects to /login on failure (anonymous).
+    Admin sessions go to /admin in one hop (avoids /login?next=/super-admin loops).
     """
     role = get_current_role(request)
-    if role != "superadmin":
+    if role == "superadmin":
+        return role
+    if role == "admin":
         raise HTTPException(
             status_code=status.HTTP_303_SEE_OTHER,
-            headers={"Location": f"/login?next={request.url.path}"},
+            headers={"Location": "/admin"},
         )
-    return role
+    raise HTTPException(
+        status_code=status.HTTP_303_SEE_OTHER,
+        headers={"Location": f"/login?next={request.url.path}"},
+    )

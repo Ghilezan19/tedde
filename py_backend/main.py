@@ -5,15 +5,19 @@ FastAPI entry point for the unified Python-only camera service.
 import asyncio
 import logging
 import sys
+import traceback
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 import startup_check
+from debug_agent_log import agent_log
 from camera.audio import AudioClient
 from camera.camera2_control import Camera2ControlClient
 from camera.ir import IRClient
@@ -115,6 +119,47 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# #region agent log
+class _Debug500Middleware(BaseHTTPMiddleware):
+    """Log 500 responses and uncaught exceptions to .cursor/debug-e5dd89.log (NDJSON)."""
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            response = await call_next(request)
+            if response.status_code >= 500:
+                agent_log(
+                    hypothesis_id="F",
+                    location="main._Debug500Middleware",
+                    message="http_500_response",
+                    data={
+                        "path": request.url.path,
+                        "method": request.method,
+                        "status": response.status_code,
+                    },
+                )
+            return response
+        except Exception as exc:
+            tb = traceback.format_exc()
+            agent_log(
+                hypothesis_id="E",
+                location="main._Debug500Middleware",
+                message="unhandled_exception",
+                data={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "exc_type": type(exc).__name__,
+                    "exc_msg": str(exc)[:500],
+                    "tb_tail": tb[-1500:],
+                },
+            )
+            raise
+
+
+app.add_middleware(_Debug500Middleware)
+
+# #endregion
+
 app.mount("/public", StaticFiles(directory=settings.public_dir_abs), name="public")
 app.mount("/snapshots", StaticFiles(directory=settings.snapshot_dir_abs), name="snapshots")
 app.mount("/recordings", StaticFiles(directory=settings.recordings_dir_abs), name="recordings")
@@ -141,15 +186,14 @@ app.include_router(customer_portal_router)
 # HTTPException(303) from auth dependencies gets converted to a proper redirect
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    if exc.status_code == status.HTTP_303_SEE_OTHER and "Location" in (exc.headers or {}):
-        return RedirectResponse(
-            url=exc.headers["Location"],
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-    from fastapi.responses import JSONResponse
+    headers = getattr(exc, "headers", None) or {}
+    loc = headers.get("Location") or headers.get("location")
+    if exc.status_code == status.HTTP_303_SEE_OTHER and loc:
+        return RedirectResponse(url=loc, status_code=status.HTTP_303_SEE_OTHER)
+    # detail can be str, list, or dict (validation) — must be JSON-serializable
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail},
+        content=jsonable_encoder({"detail": exc.detail}),
     )
 
 

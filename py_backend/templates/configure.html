@@ -421,11 +421,10 @@
             <input type="text" id="ALPR_OCR_MODEL" value="{{ env.get('ALPR_OCR_MODEL','cct-xs-v2-global-model') }}">
           </div>
           <div class="form-group">
-            <label>Cameră ALPR (1=fixă, 2=PTZ)</label>
-            <select id="ALPR_CAMERA">
-              <option value="1" {% if env.get('ALPR_CAMERA','1') == '1' %}selected{% endif %}>Camera 1 — Fixă</option>
-              <option value="2" {% if env.get('ALPR_CAMERA','1') == '2' %}selected{% endif %}>Camera 2 — PTZ</option>
-            </select>
+            <label>Cameră ALPR</label>
+            <p style="margin:0;font-size:0.9rem;color:var(--muted);line-height:1.45">
+              Întotdeauna <strong>camera 2</strong> (față / PTZ) — nu se poate schimba.
+            </p>
           </div>
           <div class="form-group">
             <label>ALPR activat</label>
@@ -810,7 +809,7 @@ function collectConfig() {
     'RTSP_MAIN_PATH','RTSP_SUB_PATH',
     'CAMERA2_IP','CAMERA2_RTSP_PORT','CAMERA2_HTTP_PORT','CAMERA2_SDK_PORT',
     'CAMERA2_USERNAME','CAMERA2_PASSWORD','CAMERA2_ONVIF_PROFILE',
-    'ALPR_DETECTOR_MODEL','ALPR_OCR_MODEL','ALPR_CAMERA','ALPR_ENABLED',
+    'ALPR_DETECTOR_MODEL','ALPR_OCR_MODEL','ALPR_ENABLED',
     'ALPR_UPSCALE_RETRY','ALPR_PREDICT_UPSCALE',
     'RECORDING_DURATION_SECONDS','ESP_COUNTDOWN_SECONDS',
     'WORKFLOW_RECORD_STREAM','ESP_DEVICE_IP','ESP_HELP_NOTE',

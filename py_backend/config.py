@@ -6,7 +6,7 @@ No hard-coded values anywhere else in the codebase; import `settings` instead.
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Allow running the backend from either the repo root or the py_backend/ folder.
@@ -153,9 +153,17 @@ class Settings(BaseSettings):
         description="1 = ALPR runs on the workflow start snapshot, 0 = disabled.",
     )
     alpr_camera: int = Field(
-        default=1,
-        description="Camera used to capture the workflow ALPR snapshot.",
+        default=2,
+        ge=1,
+        le=2,
+        description="ALPR snapshot: always camera 2 (față / PTZ). Env ALPR_CAMERA is ignored.",
     )
+
+    @field_validator("alpr_camera", mode="before")
+    @classmethod
+    def _alpr_always_camera_2(cls, value: object) -> int:
+        """License-plate snapshot always uses camera 2 (front); do not allow .env override."""
+        return 2
     alpr_detector_conf_thresh: float = Field(
         default=0.1,
         ge=0.05,

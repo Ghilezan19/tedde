@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from config import settings
+from debug_agent_log import agent_log
 from services.auth_service import require_admin
 
 logger = logging.getLogger(__name__)
@@ -40,9 +41,18 @@ async def admin_page(
     request: Request,
     role: str = Depends(require_admin),
 ) -> HTMLResponse:
+    # #region agent log
+    agent_log(
+        hypothesis_id="D",
+        location="admin_api.admin_page",
+        message="render_admin",
+        data={"role": role},
+    )
+    # #endregion
     return templates.TemplateResponse(
+        request,
         "admin.html",
-        {"request": request, "role": role},
+        {"role": role},
     )
 
 
