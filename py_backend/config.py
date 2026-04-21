@@ -237,6 +237,16 @@ class Settings(BaseSettings):
     sms_http_method: str = Field(default="POST")
     sms_http_headers_json: str = Field(default="{}")
     sms_http_body_template: str = Field(default="")
+
+    # ── Simple SMS gateway (POST /send-sms with {apiKey, phone, message}) ──
+    sms_gateway_url: str = Field(
+        default="",
+        description="Base URL of the custom SMS gateway (e.g. http://100.113.168.44:8080).",
+    )
+    sms_gateway_api_key: str = Field(
+        default="",
+        description="API key sent in the JSON body as 'apiKey' to the SMS gateway.",
+    )
     portal_brand_name: str = Field(default="TEDDE AUTO")
     portal_footer_phone: str = Field(default="0744 658 650")
     portal_footer_email: str = Field(default="office@tedde-auto.ro")
@@ -292,7 +302,7 @@ class Settings(BaseSettings):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def events_dir_abs(self) -> Path:
-        base = Path(__file__).parent.parent
+        base = Path(__file__).parent
         return (base / self.events_dir).resolve()
 
     @computed_field  # type: ignore[prop-decorator]

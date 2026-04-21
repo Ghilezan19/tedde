@@ -14,12 +14,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from config import settings
 from debug_agent_log import agent_log
+from services.auth_service import require_superadmin
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(settings.templates_dir_abs))
@@ -34,6 +35,7 @@ _SENSITIVE_KEYS = {
     "SUPERADMIN_PASSWORD",
     "SESSION_SECRET_KEY",
     "SMS_HTTP_HEADERS_JSON",
+    "SMS_GATEWAY_API_KEY",
 }
 
 # Keys that must NOT be written through this API
@@ -125,8 +127,11 @@ def _write_env(new_values: dict[str, str]) -> None:
 
 
 @router.get("/configure", response_class=HTMLResponse, include_in_schema=False)
-async def configure_page(request: Request) -> HTMLResponse:
-    """Configure dashboard — no authentication required (local access only)."""
+async def configure_page(
+    request: Request,
+    role: str = Depends(require_superadmin),
+) -> HTMLResponse:
+    """Configure dashboard — requires superadmin role (exposed via public tunnel)."""
     # #region agent log
     agent_log(
         hypothesis_id="A",
@@ -149,7 +154,9 @@ async def configure_page(request: Request) -> HTMLResponse:
 
 
 @router.get("/api/config", summary="Read current .env settings")
-async def get_config() -> dict[str, Any]:
+async def get_config(
+    role: str = Depends(require_superadmin),
+) -> dict[str, Any]:
     """Return all .env key-value pairs with sensitive fields masked."""
     env = _read_env()
     masked: dict[str, str] = {}
@@ -159,7 +166,10 @@ async def get_config() -> dict[str, Any]:
 
 
 @router.post("/api/config/save", summary="Save settings to .env")
-async def save_config(request: Request) -> JSONResponse:
+async def save_config(
+    request: Request,
+    role: str = Depends(require_superadmin),
+) -> JSONResponse:
     """
     Accept a JSON body with key-value pairs and write them to .env.
     Readonly keys are silently ignored. Creates a .env.bak.{ts} backup.

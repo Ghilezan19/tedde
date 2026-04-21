@@ -1,0 +1,2 @@
+[console_scripts]
+fast-plate-ocr = fast_plate_ocr.cli.cli:main_cli

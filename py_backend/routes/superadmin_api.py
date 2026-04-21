@@ -106,13 +106,28 @@ async def set_tokens(
     count = body.get("tokens_remaining")
     if count is None or not isinstance(count, int) or count < 0:
         raise HTTPException(status_code=400, detail="tokens_remaining must be a non-negative integer")
+    note = body.get("note")
 
     portal = _get_portal_service(request)
-    await asyncio.to_thread(portal.set_tokens_remaining, count)
-    return {"ok": True, "tokens_remaining": count}
+    new_val = await asyncio.to_thread(portal.set_tokens_remaining, count, note=note)
+    return {"ok": True, "tokens_remaining": new_val}
 
 
-# ── Events by day ──────────────────────────────────────────���──────
+@router.get(
+    "/api/superadmin/tokens/history",
+    summary="Audit log: every token consume / top-up / manual adjust",
+)
+async def tokens_history(
+    request: Request,
+    _role: str = Depends(require_superadmin),
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    portal = _get_portal_service(request)
+    return await asyncio.to_thread(portal.list_token_history, limit=limit, offset=offset)
+
+
+# ── Events by day ──────────────────────────────────────────��──────
 
 @router.get("/api/superadmin/events-by-day", summary="All events grouped by day")
 async def events_by_day(

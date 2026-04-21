@@ -1,0 +1,16 @@
+fast_alpr-0.4.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+fast_alpr-0.4.0.dist-info/METADATA,sha256=5GPJHE_4krq-HpLsVtVVRoPs0MaW0T6Maeu6MarSzko,9231
+fast_alpr-0.4.0.dist-info/RECORD,,
+fast_alpr-0.4.0.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
+fast_alpr-0.4.0.dist-info/WHEEL,sha256=QccIxa26bgl1E6uMy58deGWi-0aeIkkangHcxk2kWfw,87
+fast_alpr-0.4.0.dist-info/licenses/LICENSE,sha256=qVPmJoyJF5xKjwz1pJ9XvDgKYOOAeP4fY2Gg5F_QA2M,1066
+fast_alpr/__init__.py,sha256=Xe1QT87GbS2Uf7tW00WoMvsH8PqqbMsoeTIzlJKWvxY,320
+fast_alpr/__pycache__/__init__.cpython-312.pyc,,
+fast_alpr/__pycache__/alpr.cpython-312.pyc,,
+fast_alpr/__pycache__/base.cpython-312.pyc,,
+fast_alpr/__pycache__/default_detector.cpython-312.pyc,,
+fast_alpr/__pycache__/default_ocr.cpython-312.pyc,,
+fast_alpr/alpr.py,sha256=AQOT85SuFPVse_VfyOXmvr0BAikJ3TrUTVQL2_Y76x4,9211
+fast_alpr/base.py,sha256=YNgKqZkBrBjx9nSZ9VI0o8_x8_Hd2W2ZArPLN0EOz6o,1086
+fast_alpr/default_detector.py,sha256=M1ByF05KtwnuBqxJHfUofOr1nSGT997cYN7eugQ72GE,2137
+fast_alpr/default_ocr.py,sha256=uFBIGpW4esA_-X37sGoCg2p4C27UR4Cm014HoLRfmcw,3316

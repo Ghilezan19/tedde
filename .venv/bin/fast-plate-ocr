@@ -1,0 +1,6 @@
+#!/home/tedde-auto/work/tedde/.venv/bin/python3
+import sys
+from fast_plate_ocr.cli.cli import main_cli
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main_cli())

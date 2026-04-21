@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="ro" style="--portal-accent: {{ theme_accent }}; --portal-dark: {{ theme_dark }};">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,175 +8,213 @@
   <link rel="icon" href="{{ logo_url }}" type="image/png" sizes="any">
   <link rel="apple-touch-icon" href="{{ logo_url }}">
   <link rel="stylesheet" href="/public/customer-portal.css">
-  <style>
-    :root {
-      --portal-accent: {{ theme_accent }};
-      --portal-dark: {{ theme_dark }};
-    }
-  </style>
+  {# Pre-warm video cache while customer is on the quiz page #}
+  {% if portal and portal.event %}
+  {% if portal.event.camera1_url %}
+  <link rel="preload" as="video" href="{{ portal.event.camera1_url }}" type="video/mp4" crossorigin="anonymous">
+  {% endif %}
+  {% if portal.event.camera2_url %}
+  <link rel="preload" as="video" href="{{ portal.event.camera2_url }}" type="video/mp4" crossorigin="anonymous">
+  {% endif %}
+  {% endif %}
 </head>
-<body>
-  <div class="portal-shell">
-    <header class="portal-topbar">
-      <div class="portal-topbar-inner">
-        <img class="portal-brand-logo" src="{{ logo_url }}" width="200" height="52" alt="">
-        <div class="portal-topbar-text">
-          <span class="portal-topbar-brand">{{ brand_name }}</span>
-          <span class="portal-topbar-tag">{{ brand_subtitle }}</span>
-        </div>
-      </div>
-    </header>
 
-    <main class="portal-main">
-      <div class="portal-inner">
-        <header class="portal-intro">
-          <p class="portal-greeting">Bună ziua, {{ portal.owner_name }}</p>
-          <h1 class="portal-title">Constatare video</h1>
-          <p class="portal-plate-line">
-            Număr înmatriculare
-            <span class="portal-plate">{{ portal.license_plate }}</span>
-          </p>
+<body>
+  {# ── Aggressive preload: hidden <video preload="auto"> triggers full range
+    download across all evergreen browsers. Shown only while quiz is active.
+    Once the page re-renders after submit, these are removed and the real
+    <video> elements below pick up the already-cached bytes. #}
+      {% if portal and portal.event and not portal.quiz_completed %}
+      <div id="portal-preload-sink" aria-hidden="true" data-cam1="{{ portal.event.camera1_url or '' }}"
+        data-cam2="{{ portal.event.camera2_url or '' }}"
+        style="position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;">
+        {% if portal.event.camera1_url %}
+        <video preload="auto" muted src="{{ portal.event.camera1_url }}"></video>
+        {% endif %}
+        {% if portal.event.camera2_url %}
+        <video preload="auto" muted src="{{ portal.event.camera2_url }}"></video>
+        {% endif %}
+      </div>
+      <script>
+        // Belt-and-braces: fire a fetch() for each video so the bytes land in the
+        // HTTP cache while the customer is still filling the quiz. No-op errors
+        // are swallowed so the page never breaks if the network hiccups.
+        (function () {
+          var sink = document.getElementById("portal-preload-sink");
+          if (!sink) return;
+          ["cam1", "cam2"].forEach(function (k) {
+            var u = sink.getAttribute("data-" + k);
+            if (!u) return;
+            try {
+              fetch(u, { credentials: "same-origin", cache: "force-cache" }).catch(function () { });
+            } catch (e) { }
+          });
+        })();
+      </script>
+      {% endif %}
+
+      <div class="portal-shell">
+        <header class="portal-topbar">
+          <div class="portal-topbar-inner">
+            <img class="portal-brand-logo" src="{{ logo_url }}" width="200" height="52" alt="">
+            <div class="portal-topbar-text">
+              <span class="portal-topbar-brand">{{ brand_name }}</span>
+              <span class="portal-topbar-tag">{{ brand_subtitle }}</span>
+            </div>
+          </div>
         </header>
 
-        <section class="portal-card portal-info-card" aria-label="Detalii constatare">
-          <div class="portal-info-grid">
-            <div class="portal-info-item">
-              <span class="label">Proprietar</span>
-              <strong>{{ portal.owner_name }}</strong>
-            </div>
-            <div class="portal-info-item">
-              <span class="label">Mecanic</span>
-              <strong>{{ portal.mechanic_name }}</strong>
-            </div>
-            <div class="portal-info-item">
-              <span class="label">Data și ora</span>
-              <strong>{{ event_meta.recorded_at_long }}</strong>
-            </div>
-          </div>
-        </section>
+        <main class="portal-main">
+          <div class="portal-inner">
+            <header class="portal-intro">
+              <p class="portal-greeting">Bună ziua, {{ portal.owner_name }}</p>
+              <h1 class="portal-title">Constatare video</h1>
+              <p class="portal-plate-line">
+                Număr înmatriculare
+                <span class="portal-plate">{{ portal.license_plate }}</span>
+              </p>
+            </header>
 
-        {% if form_error %}
-        <section class="portal-card alert-card error" role="alert">
-          {{ form_error }}
-        </section>
-        {% endif %}
-
-        {% if not portal.quiz_completed %}
-        <section class="portal-card quiz-card">
-          <div class="section-header">
-            <span class="section-kicker">Pas obligatoriu</span>
-            <h2>Feedback rapid înainte de vizionare</h2>
-            <p>Completați cele 3 răspunsuri pentru a debloca înregistrările video.</p>
-          </div>
-
-          <form method="post" action="{{ request.url.path }}/quiz" class="quiz-form">
-            <div class="question-block">
-              <label for="rating_overall">1. Cum apreciați experiența generală la {{ brand_name }}?</label>
-              <div class="rating-grid">
-                {% for value, label in rating_options %}
-                <label class="rating-option">
-                  <input type="radio" name="rating_overall" value="{{ value }}" required>
-                  <span>{{ value }} — {{ label }}</span>
-                </label>
-                {% endfor %}
+            <section class="portal-card portal-info-card" aria-label="Detalii constatare">
+              <div class="portal-info-grid">
+                <div class="portal-info-item">
+                  <span class="label">Proprietar</span>
+                  <strong>{{ portal.owner_name }}</strong>
+                </div>
+                <div class="portal-info-item">
+                  <span class="label">Mecanic</span>
+                  <strong>{{ portal.mechanic_name }}</strong>
+                </div>
+                <div class="portal-info-item">
+                  <span class="label">Data și ora</span>
+                  <strong>{{ event_meta.recorded_at_long }}</strong>
+                </div>
               </div>
-            </div>
+            </section>
 
-            <div class="question-block">
-              <label for="rating_explanation">2. Cât de clar v-au fost explicate constatările și lucrările de către mecanic?</label>
-              <div class="rating-grid">
-                {% for value, label in rating_options %}
-                <label class="rating-option">
-                  <input type="radio" name="rating_explanation" value="{{ value }}" required>
-                  <span>{{ value }} — {{ label }}</span>
-                </label>
-                {% endfor %}
+            {% if form_error %}
+            <section class="portal-card alert-card error" role="alert">
+              {{ form_error }}
+            </section>
+            {% endif %}
+
+            {% if not portal.quiz_completed %}
+            <section class="portal-card quiz-card">
+              <div class="section-header">
+                <span class="section-kicker">Pas obligatoriu</span>
+                <h2>Feedback rapid înainte de vizionare</h2>
+                <p>Completați cele 3 răspunsuri pentru a debloca înregistrările video.</p>
               </div>
-            </div>
 
-            <div class="question-block">
-              <label for="free_text">3. Ce observații sau recomandări aveți pentru noi?</label>
-              <textarea id="free_text" name="free_text" rows="5" required placeholder="Scrieți aici feedback-ul dumneavoastră…"></textarea>
-            </div>
+              <form method="post" action="{{ request.url.path }}/quiz" class="quiz-form">
+                <div class="question-block">
+                  <label for="rating_overall">1. Cum apreciați experiența generală la {{ brand_name }}?</label>
+                  <div class="rating-grid">
+                    {% for value, label in rating_options %}
+                    <label class="rating-option">
+                      <input type="radio" name="rating_overall" value="{{ value }}" required>
+                      <span>{{ value }} — {{ label }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                </div>
 
-            <button type="submit" class="primary-btn">Trimite feedback și vezi video</button>
-          </form>
-        </section>
-        {% else %}
-        <section class="portal-card success-card">
-          <div class="section-header">
-            <span class="section-kicker success">Feedback salvat</span>
-            <h2>Constatarea video este disponibilă</h2>
-            <p>Puteți viziona mai jos înregistrările video disponibile pentru acest eveniment.</p>
+                <div class="question-block">
+                  <label for="rating_explanation">2. Cât de clar v-au fost explicate constatările și lucrările de către
+                    mecanic?</label>
+                  <div class="rating-grid">
+                    {% for value, label in rating_options %}
+                    <label class="rating-option">
+                      <input type="radio" name="rating_explanation" value="{{ value }}" required>
+                      <span>{{ value }} — {{ label }}</span>
+                    </label>
+                    {% endfor %}
+                  </div>
+                </div>
+
+                <div class="question-block">
+                  <label for="free_text">3. Ce observații sau recomandări aveți pentru noi?</label>
+                  <textarea id="free_text" name="free_text" rows="5" required
+                    placeholder="Scrieți aici feedback-ul dumneavoastră…"></textarea>
+                </div>
+
+                <button type="submit" class="primary-btn">Trimite feedback și vezi video</button>
+              </form>
+            </section>
+            {% else %}
+            <section class="portal-card success-card">
+              <div class="section-header">
+                <span class="section-kicker success">Feedback salvat</span>
+                <h2>Constatarea video este disponibilă</h2>
+                <p>Puteți viziona mai jos înregistrările video disponibile pentru acest eveniment.</p>
+              </div>
+            </section>
+
+            <section
+              class="videos-grid{% if portal_video_card_count == 1 %} videos-grid--single{% elif portal_video_card_count > 1 %} videos-grid--multi{% endif %}"
+              aria-label="Înregistrări video">
+              {% if portal.event.camera1_url %}
+              <figure class="portal-card video-card">
+                <figcaption class="video-header">
+                  <h3>Dedesubt</h3>
+                  <span>{{ event_meta.recorded_at_display }}</span>
+                </figcaption>
+                <div class="video-stage">
+                  <video controls preload="auto" playsinline muted src="{{ portal.event.camera1_url }}"></video>
+                </div>
+              </figure>
+              {% endif %}
+
+              {% if portal.event.camera2_url %}
+              <figure class="portal-card video-card">
+                <figcaption class="video-header">
+                  <h3>Frontal</h3>
+                  <span>{{ event_meta.recorded_at_display }}</span>
+                </figcaption>
+                <div class="video-stage">
+                  <video controls preload="auto" playsinline muted src="{{ portal.event.camera2_url }}"></video>
+                </div>
+              </figure>
+              {% endif %}
+            </section>
+            {% endif %}
           </div>
-        </section>
+        </main>
 
-        <section class="videos-grid{% if portal_video_card_count == 1 %} videos-grid--single{% elif portal_video_card_count > 1 %} videos-grid--multi{% endif %}" aria-label="Înregistrări video">
-          {% if portal.event.camera1_url %}
-          <figure class="portal-card video-card">
-            <figcaption class="video-header">
-              <h3>Dedesubt</h3>
-              <span>{{ event_meta.recorded_at_display }}</span>
-            </figcaption>
-            <div class="video-stage">
-              <video class="portal-bumper-video" controls preload="metadata" playsinline data-main-src="{{ portal.event.camera1_url }}">
-                <source src="{{ bumper_video_url }}" type="video/mp4">
-              </video>
+        <footer class="portal-footer">
+          <div class="portal-inner portal-footer-inner">
+            <div class="portal-footer-block">
+              <span class="label">Adresă</span>
+              {% if footer_address %}
+              <strong class="footer-value">{{ footer_address }}</strong>
+              {% else %}
+              <strong class="footer-value">—</strong>
+              {% endif %}
             </div>
-          </figure>
-          {% endif %}
-
-          {% if portal.event.camera2_url %}
-          <figure class="portal-card video-card">
-            <figcaption class="video-header">
-              <h3>Frontal</h3>
-              <span>{{ event_meta.recorded_at_display }}</span>
-            </figcaption>
-            <div class="video-stage">
-              <video class="portal-bumper-video" controls preload="metadata" playsinline data-main-src="{{ portal.event.camera2_url }}">
-                <source src="{{ bumper_video_url }}" type="video/mp4">
-              </video>
+            <div class="portal-footer-block">
+              <span class="label">Telefon</span>
+              {% if footer_phone|trim %}
+              <a class="footer-value-link" href="tel:{{ footer_phone | replace(' ', '') | replace('-', '') }}">{{
+                footer_phone }}</a>
+              {% else %}
+              <strong class="footer-value">—</strong>
+              {% endif %}
             </div>
-          </figure>
-          {% endif %}
-        </section>
-        <script src="/public/customer-portal-video.js" defer></script>
-        {% endif %}
+            <div class="portal-footer-block">
+              <span class="label">Email</span>
+              {% if footer_email|trim %}
+              <a class="footer-value-link" href="mailto:{{ footer_email|trim }}">{{ footer_email }}</a>
+              {% else %}
+              <strong class="footer-value">—</strong>
+              {% endif %}
+            </div>
+            <div class="portal-footer-block">
+              <span class="label">Program</span>
+              <strong class="footer-value">{{ footer_hours }}</strong>
+            </div>
+          </div>
+        </footer>
       </div>
-    </main>
-
-    <footer class="portal-footer">
-      <div class="portal-inner portal-footer-inner">
-        <div class="portal-footer-block">
-          <span class="label">Adresă</span>
-          {% if footer_address %}
-          <strong class="footer-value">{{ footer_address }}</strong>
-          {% else %}
-          <strong class="footer-value">—</strong>
-          {% endif %}
-        </div>
-        <div class="portal-footer-block">
-          <span class="label">Telefon</span>
-          {% if footer_phone|trim %}
-          <a class="footer-value-link" href="tel:{{ footer_phone | replace(' ', '') | replace('-', '') }}">{{ footer_phone }}</a>
-          {% else %}
-          <strong class="footer-value">—</strong>
-          {% endif %}
-        </div>
-        <div class="portal-footer-block">
-          <span class="label">Email</span>
-          {% if footer_email|trim %}
-          <a class="footer-value-link" href="mailto:{{ footer_email|trim }}">{{ footer_email }}</a>
-          {% else %}
-          <strong class="footer-value">—</strong>
-          {% endif %}
-        </div>
-        <div class="portal-footer-block">
-          <span class="label">Program</span>
-          <strong class="footer-value">{{ footer_hours }}</strong>
-        </div>
-      </div>
-    </footer>
-  </div>
 </body>
+
 </html>

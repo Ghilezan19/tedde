@@ -1,285 +1,668 @@
 <!DOCTYPE html>
 <html lang="ro">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tedde — Super-Admin</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     :root {
-      --bg: #0f0f1a; --card: #1a1a2e; --border: #2d2d4e;
-      --accent: #e94560; --text: #e2e8f0; --muted: #64748b;
-      --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+      --bg: #0f0f1a;
+      --card: #1a1a2e;
+      --border: #2d2d4e;
+      --accent: #e94560;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
       --input-bg: #0f0f1a;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    .topbar { background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.5rem; position: sticky; top: 0; z-index: 100; }
-    .topbar h1 { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
-    .topbar-links { display: flex; gap: 1rem; font-size: 0.82rem; align-items: center; }
-    .topbar-links a { color: var(--muted); text-decoration: none; }
-    .topbar-links a:hover { color: var(--text); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-    .page { max-width: 1000px; margin: 0 auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
 
-    .section-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.4rem; }
-    .section-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
+    .topbar h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; }
-    .stat-box { background: #13131f; border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem; }
-    .stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-    .stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 0.2rem; }
-    .stat-value.accent { color: var(--accent); }
+    .topbar-links {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.82rem;
+      align-items: center;
+    }
 
-    .token-row { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; }
-    input[type="number"] { background: var(--input-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-size: 1rem; width: 130px; outline: none; }
-    input[type="number"]:focus { border-color: var(--accent); }
+    .topbar-links a {
+      color: var(--muted);
+      text-decoration: none;
+    }
 
-    .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
-    .btn:active { transform: scale(0.97); }
-    .btn:hover { opacity: 0.88; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: #2d2d4e; color: var(--text); }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
+    .topbar-links a:hover {
+      color: var(--text);
+    }
 
-    .health-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
-    .health-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
-    .health-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .dot-ok { background: var(--success); }
-    .dot-err { background: var(--danger); }
-    .dot-warn { background: var(--warning); }
+    .page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .section-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.4rem;
+    }
+
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .stat-box {
+      background: #13131f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 0.2rem;
+    }
+
+    .stat-value.accent {
+      color: var(--accent);
+    }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 0.75rem;
+    }
+
+    input[type="number"] {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      width: 130px;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn:hover {
+      opacity: 0.88;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #2d2d4e;
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.82rem;
+    }
+
+    .health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.6rem;
+    }
+
+    .health-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+    }
+
+    .health-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-ok {
+      background: var(--success);
+    }
+
+    .dot-err {
+      background: var(--danger);
+    }
+
+    .dot-warn {
+      background: var(--warning);
+    }
 
     /* Accordion */
-    .day-group { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 0.6rem; }
-    .day-header { background: #13131f; padding: 0.65rem 1rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-    .day-header:hover { background: #1a1a2e; }
-    .day-title { font-weight: 600; font-size: 0.9rem; }
-    .day-count { font-size: 0.78rem; color: var(--muted); }
-    .day-chevron { transition: transform 0.2s; }
-    .day-header.open .day-chevron { transform: rotate(180deg); }
-    .day-events { display: none; }
-    .day-header.open + .day-events { display: block; }
+    .day-group {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 0.6rem;
+    }
 
-    .event-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 1rem; border-top: 1px solid var(--border); font-size: 0.84rem; }
-    .event-row:hover { background: rgba(255,255,255,0.02); }
-    .event-plate { font-family: monospace; font-weight: 700; font-size: 0.95rem; min-width: 90px; }
-    .event-time { color: var(--muted); font-size: 0.78rem; min-width: 60px; }
-    .badge { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.15rem 0.45rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
-    .badge-ok { background: rgba(34,197,94,0.15); color: var(--success); }
-    .badge-err { background: rgba(100,116,139,0.15); color: var(--muted); }
+    .day-header {
+      background: #13131f;
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+
+    .day-header:hover {
+      background: #1a1a2e;
+    }
+
+    .day-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .day-count {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .day-chevron {
+      transition: transform 0.2s;
+    }
+
+    .day-header.open .day-chevron {
+      transform: rotate(180deg);
+    }
+
+    .day-events {
+      display: none;
+    }
+
+    .day-header.open+.day-events {
+      display: block;
+    }
+
+    .event-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.84rem;
+    }
+
+    .event-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .event-plate {
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 0.95rem;
+      min-width: 90px;
+    }
+
+    .event-time {
+      color: var(--muted);
+      font-size: 0.78rem;
+      min-width: 60px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .badge-ok {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .badge-err {
+      background: rgba(100, 116, 139, 0.15);
+      color: var(--muted);
+    }
 
     /* Cleanup */
-    .cleanup-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-    .toggle-wrap { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.88rem; }
-    .toggle-wrap input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+    .cleanup-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
 
-    .danger-zone { border: 1px solid rgba(239,68,68,0.4); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 0.75rem; background: rgba(239,68,68,0.05); }
-    .danger-title { color: var(--danger); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.88rem;
+    }
+
+    .toggle-wrap input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .danger-zone {
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-top: 0.75rem;
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .danger-title {
+      color: var(--danger);
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
 
     /* Modal confirm */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; display: none; }
-    .modal-overlay.open { display: flex; }
-    .modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem; max-width: 420px; width: 90%; }
-    .modal-box h2 { color: var(--danger); font-size: 1.1rem; margin-bottom: 0.75rem; }
-    .modal-box p { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.25rem; line-height: 1.5; }
-    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      display: none;
+    }
 
-    .info-text { font-size: 0.82rem; color: var(--muted); margin-top: 0.5rem; }
-    .feedback-msg { font-size: 0.83rem; margin-top: 0.5rem; }
-    .feedback-msg.ok { color: var(--success); }
-    .feedback-msg.err { color: var(--danger); }
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      max-width: 420px;
+      width: 90%;
+    }
+
+    .modal-box h2 {
+      color: var(--danger);
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .modal-box p {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+    }
+
+    .info-text {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    .feedback-msg {
+      font-size: 0.83rem;
+      margin-top: 0.5rem;
+    }
+
+    .feedback-msg.ok {
+      color: var(--success);
+    }
+
+    .feedback-msg.err {
+      color: var(--danger);
+    }
   </style>
 </head>
+
 <body>
 
-<div class="topbar">
-  <h1>🔐 Super-Admin</h1>
-  <div class="topbar-links">
-    <a href="/admin">Admin</a>
-    <a href="/configure">Configure</a>
-    <a href="/">Dashboard</a>
-    <a href="/logout" style="color:var(--danger);">Logout</a>
+  <div class="topbar">
+    <h1>🔐 Super-Admin</h1>
+    <div class="topbar-links">
+      <a href="/admin">Admin</a>
+      <a href="/configure">Configure</a>
+      <a href="/">Dashboard</a>
+      <a href="/logout" style="color:var(--danger);">Logout</a>
+    </div>
   </div>
-</div>
 
-<div class="page">
+  <div class="page">
 
-  <!-- ── Tokens ──────────────────────────────────���──── -->
-  <div class="section-card">
-    <div class="section-title">🪙 Tokens — Subscripție vehicule</div>
-    <div class="stats-grid" id="token-stats">
-      <div class="stat-box">
-        <div class="stat-label">Tokeni rămași</div>
-        <div class="stat-value accent" id="tokens-remaining">—</div>
+    <!-- ── Tokens ──────────────────────────────────���──── -->
+    <div class="section-card">
+      <div class="section-title">🪙 Tokens — Subscripție vehicule</div>
+      <div class="stats-grid" id="token-stats">
+        <div class="stat-box">
+          <div class="stat-label">Tokeni rămași</div>
+          <div class="stat-value accent" id="tokens-remaining">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Procesate luna aceasta</div>
+          <div class="stat-value" id="monthly-count">—</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Total procesate</div>
+          <div class="stat-value" id="total-count">—</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Procesate luna aceasta</div>
-        <div class="stat-value" id="monthly-count">—</div>
+      <div class="token-row">
+        <input type="number" id="new-token-count" min="0" placeholder="Număr tokeni" value="">
+        <button class="btn btn-primary btn-sm" onclick="setTokens()">Setează tokeni</button>
+        <span id="token-msg" class="feedback-msg"></span>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Total procesate</div>
-        <div class="stat-value" id="total-count">—</div>
+
+      <!-- ── Istoric tokeni ───────────────────────────── -->
+      <div style="margin-top:1.25rem;border-top:1px solid rgba(255,255,255,0.08);padding-top:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+          <div style="font-weight:600;font-size:0.95rem;">📜 Istoric tokeni</div>
+          <div style="font-size:0.82rem;color:var(--muted);">
+            Consumat: <b id="tokens-total-consumed">—</b> &nbsp;·&nbsp;
+            Adăugat: <b id="tokens-total-topped">—</b>
+          </div>
+        </div>
+        <div id="token-history" style="max-height:320px;overflow-y:auto;">
+          <div style="color:var(--muted);font-size:0.85rem;padding:0.5rem;">Se încarcă...</div>
+        </div>
       </div>
     </div>
-    <div class="token-row">
-      <input type="number" id="new-token-count" min="0" placeholder="Număr tokeni" value="">
-      <button class="btn btn-primary btn-sm" onclick="setTokens()">Setează tokeni</button>
-      <span id="token-msg" class="feedback-msg"></span>
-    </div>
-  </div>
 
-  <!-- ── Status sistem ──────────────────────────────── -->
-  <div class="section-card">
-    <div class="section-title">📡 Status sistem</div>
-    <div class="health-grid" id="health-grid">
-      <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
-    </div>
-    <p class="info-text" id="server-uptime"></p>
-  </div>
-
-  <!-- ── Videouri salvate pe zile ───────────────────── -->
-  <div class="section-card">
-    <div class="section-title">🎞 Videouri salvate — per zi</div>
-    <div id="events-by-day">
-      <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
-    </div>
-  </div>
-
-  <!-- ── Cleanup ────────────────────────────────────── -->
-  <div class="section-card">
-    <div class="section-title">🗑 Cleanup automat</div>
-    <div class="cleanup-row">
-      <label class="toggle-wrap">
-        <input type="checkbox" id="auto-cleanup-toggle" onchange="saveCleanupConfig()">
-        Cleanup automat activ
-      </label>
-      <div style="display:flex;align-items:center;gap:0.5rem;">
-        <span style="font-size:0.85rem;">Șterge fișiere mai vechi de</span>
-        <input type="number" id="cleanup-days" min="1" max="365" value="30" style="width:70px;padding:0.35rem 0.5rem;font-size:0.88rem;" onchange="saveCleanupConfig()">
-        <span style="font-size:0.85rem;">zile</span>
+    <!-- ── Status sistem ──────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-title">📡 Status sistem</div>
+      <div class="health-grid" id="health-grid">
+        <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="runCleanup()">▶ Rulează acum</button>
-      <span id="cleanup-msg" class="feedback-msg"></span>
+      <p class="info-text" id="server-uptime"></p>
     </div>
-    <div id="cleanup-log" class="info-text" style="margin-top:0.75rem;"></div>
 
-    <div class="danger-zone">
-      <div class="danger-title">⚠️ Zonă periculoasă</div>
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;">
-        Șterge <b>toate</b> înregistrările, evenimentele, snapshot-urile, link-urile clienților și feedback-ul. Această acțiune este ireversibilă.
-      </p>
-      <button class="btn btn-danger btn-sm" onclick="openClearModal()">🗑 Șterge TOT</button>
+    <!-- ── Videouri salvate pe zile ───────────────────── -->
+    <div class="section-card">
+      <div class="section-title">🎞 Videouri salvate — per zi</div>
+      <div id="events-by-day">
+        <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
+      </div>
+    </div>
+
+    <!-- ── Cleanup ────────────────────────────────────── -->
+    <div class="section-card">
+      <div class="section-title">🗑 Cleanup automat</div>
+      <div class="cleanup-row">
+        <label class="toggle-wrap">
+          <input type="checkbox" id="auto-cleanup-toggle" onchange="saveCleanupConfig()">
+          Cleanup automat activ
+        </label>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <span style="font-size:0.85rem;">Șterge fișiere mai vechi de</span>
+          <input type="number" id="cleanup-days" min="1" max="365" value="30"
+            style="width:70px;padding:0.35rem 0.5rem;font-size:0.88rem;" onchange="saveCleanupConfig()">
+          <span style="font-size:0.85rem;">zile</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="runCleanup()">▶ Rulează acum</button>
+        <span id="cleanup-msg" class="feedback-msg"></span>
+      </div>
+      <div id="cleanup-log" class="info-text" style="margin-top:0.75rem;"></div>
+
+      <div class="danger-zone">
+        <div class="danger-title">⚠️ Zonă periculoasă</div>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;">
+          Șterge <b>toate</b> înregistrările, evenimentele, snapshot-urile, link-urile clienților și feedback-ul.
+          Această acțiune este ireversibilă.
+        </p>
+        <button class="btn btn-danger btn-sm" onclick="openClearModal()">🗑 Șterge TOT</button>
+      </div>
+    </div>
+
+  </div><!-- /page -->
+
+  <!-- Clear-All confirmation modal -->
+  <div class="modal-overlay" id="clear-modal">
+    <div class="modal-box">
+      <h2>⚠️ Confirmare ștergere totală</h2>
+      <p>Această acțiune va șterge <b>toate</b> evenimentele, înregistrările, snapshot-urile, link-urile clienților și
+        feedback-ul din baza de date. <b>Nu poate fi anulată.</b></p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeClearModal()">Anulează</button>
+        <button class="btn btn-danger" onclick="confirmClearAll()">Da, șterge TOT</button>
+      </div>
     </div>
   </div>
 
-</div><!-- /page -->
-
-<!-- Clear-All confirmation modal -->
-<div class="modal-overlay" id="clear-modal">
-  <div class="modal-box">
-    <h2>⚠️ Confirmare ștergere totală</h2>
-    <p>Această acțiune va șterge <b>toate</b> evenimentele, înregistrările, snapshot-urile, link-urile clienților și feedback-ul din baza de date. <b>Nu poate fi anulată.</b></p>
-    <div class="modal-actions">
-      <button class="btn btn-secondary" onclick="closeClearModal()">Anulează</button>
-      <button class="btn btn-danger" onclick="confirmClearAll()">Da, șterge TOT</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ── Load all data on page load ─────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  loadTokenStats();
-  loadHealth();
-  loadEventsByDay();
-  loadCleanupConfig();
-});
-
-// ── Tokens ────────────────────────────────────────────
-async function loadTokenStats() {
-  try {
-    const r = await fetch('/api/superadmin/tokens');
-    const d = await r.json();
-    document.getElementById('tokens-remaining').textContent = d.tokens_remaining;
-    document.getElementById('monthly-count').textContent = d.monthly_processed;
-    document.getElementById('total-count').textContent = d.total_processed;
-    document.getElementById('new-token-count').placeholder = d.tokens_remaining;
-  } catch(e) { console.error('loadTokenStats:', e); }
-}
-
-async function setTokens() {
-  const val = parseInt(document.getElementById('new-token-count').value);
-  const msg = document.getElementById('token-msg');
-  if (isNaN(val) || val < 0) {
-    msg.textContent = 'Introduceți un număr valid.';
-    msg.className = 'feedback-msg err';
-    return;
-  }
-  try {
-    const r = await fetch('/api/superadmin/tokens', {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({tokens_remaining: val})
+  <script>
+    // ── Load all data on page load ─────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      loadTokenStats();
+      loadTokenHistory();
+      loadHealth();
+      loadEventsByDay();
+      loadCleanupConfig();
     });
-    const d = await r.json();
-    if (d.ok) {
-      msg.textContent = `✓ Setat la ${d.tokens_remaining}`;
-      msg.className = 'feedback-msg ok';
-      await loadTokenStats();
+
+    // ── Tokens ────────────────────────────────────────────
+    async function loadTokenStats() {
+      try {
+        const r = await fetch('/api/superadmin/tokens');
+        const d = await r.json();
+        document.getElementById('tokens-remaining').textContent = d.tokens_remaining;
+        document.getElementById('monthly-count').textContent = d.monthly_processed;
+        document.getElementById('total-count').textContent = d.total_processed;
+        document.getElementById('new-token-count').placeholder = d.tokens_remaining;
+      } catch (e) { console.error('loadTokenStats:', e); }
     }
-  } catch(e) {
-    msg.textContent = 'Eroare: ' + e.message;
-    msg.className = 'feedback-msg err';
-  }
-}
 
-// ── Health ────────────────────────────────────────────
-async function loadHealth() {
-  const grid = document.getElementById('health-grid');
-  const uptime = document.getElementById('server-uptime');
-  try {
-    const r = await fetch('/api/superadmin/health');
-    const d = await r.json();
-    const h = d.health || {};
-
-    const checks = [
-      ['ffmpeg', 'ffmpeg'],
-      ['camera1_rtsp', 'Camera 1 RTSP'],
-      ['camera2_rtsp', 'Camera 2 RTSP'],
-      ['camera2_http', 'Camera 2 HTTP'],
-      ['snapshots_dir', 'Dir snapshots'],
-      ['recordings_dir', 'Dir înregistrări'],
-      ['events_dir', 'Dir evenimente'],
-    ];
-
-    grid.innerHTML = checks.map(([key, label]) => {
-      const item = h[key] || {};
-      const ok = item.ok;
-      const detail = item.detail || '';
-      const cls = ok ? 'dot-ok' : 'dot-err';
-      return `<div class="health-item"><div class="health-dot ${cls}"></div><span title="${detail}">${label}</span></div>`;
-    }).join('');
-
-    if (d.server_started_at) {
-      uptime.textContent = `Server pornit la: ${d.server_started_at}`;
+    async function loadTokenHistory() {
+      try {
+        const r = await fetch('/api/superadmin/tokens/history?limit=100');
+        const d = await r.json();
+        document.getElementById('tokens-total-consumed').textContent = d.total_consumed || 0;
+        document.getElementById('tokens-total-topped').textContent = d.total_topped_up || 0;
+        const container = document.getElementById('token-history');
+        if (!d.items || d.items.length === 0) {
+          container.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem;">Niciun istoric.</div>';
+          return;
+        }
+        container.innerHTML = d.items.map(item => {
+          const kind = item.kind || 'adjust';
+          const delta = item.delta || 0;
+          const sign = delta > 0 ? '+' : '';
+          const kindLabel = kind === 'consume' ? '📤 Consumat' : (kind === 'topup' ? '📥 Adăugat' : '⚙️ Ajustat');
+          const kindColor = kind === 'consume' ? '#ff6b6b' : (kind === 'topup' ? '#51cf66' : '#ffd43b');
+          const time = new Date(item.created_at).toLocaleString('ro-RO', { hour12: false });
+          const plate = item.license_plate ? ` · ${item.license_plate}` : '';
+          const note = item.note ? `<br><span style="font-size:0.8rem;color:var(--muted);">${item.note}</span>` : '';
+          return `
+            <div style="padding:0.6rem 0.75rem;border-bottom:1px solid rgba(255,255,255,0.06);font-size:0.85rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <span style="font-weight:600;color:${kindColor};">${kindLabel}</span>
+                  <span style="margin-left:0.5rem;color:${delta > 0 ? '#51cf66' : '#ff6b6b'};font-weight:600;">${sign}${delta}</span>
+                  <span style="margin-left:0.25rem;color:var(--muted);">→ ${item.balance_after} rămași</span>
+                  ${plate ? `<span style="margin-left:0.5rem;color:var(--muted);font-size:0.8rem;">${plate}</span>` : ''}
+                </div>
+                <div style="font-size:0.78rem;color:var(--muted);white-space:nowrap;">${time}</div>
+              </div>
+              ${note}
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('loadTokenHistory:', e);
+        document.getElementById('token-history').innerHTML = '<div style="color:#ff6b6b;font-size:0.85rem;padding:0.5rem;">Eroare la încărcare istoric.</div>';
+      }
     }
-  } catch(e) {
-    grid.innerHTML = '<span style="color:var(--danger)">Eroare la citire health.</span>';
-  }
-}
 
-// ── Events by day ─────────────────────────────────────
-async function loadEventsByDay() {
-  const el = document.getElementById('events-by-day');
-  try {
-    const r = await fetch('/api/superadmin/events-by-day');
-    const d = await r.json();
-    if (!d.days || !d.days.length) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Nicio înregistrare găsită.</div>';
-      return;
+    async function setTokens() {
+      const val = parseInt(document.getElementById('new-token-count').value);
+      const msg = document.getElementById('token-msg');
+      if (isNaN(val) || val < 0) {
+        msg.textContent = 'Introduceți un număr valid.';
+        msg.className = 'feedback-msg err';
+        return;
+      }
+      try {
+        const r = await fetch('/api/superadmin/tokens', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokens_remaining: val })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          msg.textContent = `✓ Setat la ${d.tokens_remaining}`;
+          msg.className = 'feedback-msg ok';
+          await loadTokenStats();
+          await loadTokenHistory();
+        }
+      } catch (e) {
+        msg.textContent = 'Eroare: ' + e.message;
+        msg.className = 'feedback-msg err';
+      }
     }
-    el.innerHTML = d.days.map(({day, events}) => `
+
+    // ── Health ────────────────────────────────────────────
+    async function loadHealth() {
+      const grid = document.getElementById('health-grid');
+      const uptime = document.getElementById('server-uptime');
+      try {
+        const r = await fetch('/api/superadmin/health');
+        const d = await r.json();
+        const h = d.health || {};
+
+        const checks = [
+          ['ffmpeg', 'ffmpeg'],
+          ['camera1_rtsp', 'Camera 1 RTSP'],
+          ['camera2_rtsp', 'Camera 2 RTSP'],
+          ['camera2_http', 'Camera 2 HTTP'],
+          ['snapshots_dir', 'Dir snapshots'],
+          ['recordings_dir', 'Dir înregistrări'],
+          ['events_dir', 'Dir evenimente'],
+        ];
+
+        grid.innerHTML = checks.map(([key, label]) => {
+          const item = h[key] || {};
+          const ok = item.ok;
+          const detail = item.detail || '';
+          const cls = ok ? 'dot-ok' : 'dot-err';
+          return `<div class="health-item"><div class="health-dot ${cls}"></div><span title="${detail}">${label}</span></div>`;
+        }).join('');
+
+        if (d.server_started_at) {
+          uptime.textContent = `Server pornit la: ${d.server_started_at}`;
+        }
+      } catch (e) {
+        grid.innerHTML = '<span style="color:var(--danger)">Eroare la citire health.</span>';
+      }
+    }
+
+    // ── Events by day ─────────────────────────────────────
+    async function loadEventsByDay() {
+      const el = document.getElementById('events-by-day');
+      try {
+        const r = await fetch('/api/superadmin/events-by-day');
+        const d = await r.json();
+        if (!d.days || !d.days.length) {
+          el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Nicio înregistrare găsită.</div>';
+          return;
+        }
+        el.innerHTML = d.days.map(({ day, events }) => `
       <div class="day-group">
         <div class="day-header" onclick="toggleDay(this)">
           <span class="day-title">📅 ${day}</span>
@@ -300,92 +683,93 @@ async function loadEventsByDay() {
         </div>
       </div>
     `).join('');
-  } catch(e) {
-    el.innerHTML = '<span style="color:var(--danger)">Eroare la încărcare evenimente.</span>';
-  }
-}
-
-function toggleDay(header) {
-  header.classList.toggle('open');
-}
-
-function formatTime(iso) {
-  try {
-    return new Date(iso).toLocaleTimeString('ro-RO', {hour:'2-digit', minute:'2-digit'});
-  } catch { return iso; }
-}
-
-// ── Cleanup config ────────────────────────────────────
-async function loadCleanupConfig() {
-  try {
-    const r = await fetch('/api/superadmin/cleanup-config-get', {method: 'GET'}).catch(() => null);
-    // Fallback: use health endpoint can't give this; read from cleanup-log
-    const logR = await fetch('/api/superadmin/cleanup-log');
-    const logD = await logR.json();
-    if (logD.log && Object.keys(logD.log).length) {
-      renderCleanupLog(logD.log);
+      } catch (e) {
+        el.innerHTML = '<span style="color:var(--danger)">Eroare la încărcare evenimente.</span>';
+      }
     }
-  } catch(e) { /* ignore */ }
-}
 
-async function saveCleanupConfig() {
-  const days = parseInt(document.getElementById('cleanup-days').value);
-  const enabled = document.getElementById('auto-cleanup-toggle').checked;
-  try {
-    await fetch('/api/superadmin/cleanup-config', {
-      method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({cleanup_days: days, auto_cleanup_enabled: enabled})
-    });
-  } catch(e) { console.error('saveCleanupConfig:', e); }
-}
-
-async function runCleanup() {
-  const msg = document.getElementById('cleanup-msg');
-  msg.textContent = 'Se rulează...';
-  msg.className = 'feedback-msg';
-  try {
-    const r = await fetch('/api/superadmin/cleanup-now', {method: 'POST'});
-    const d = await r.json();
-    if (d.ok) {
-      msg.textContent = '✓ Cleanup finalizat';
-      msg.className = 'feedback-msg ok';
-      renderCleanupLog(d.log);
-      await loadEventsByDay();
-      await loadTokenStats();
+    function toggleDay(header) {
+      header.classList.toggle('open');
     }
-  } catch(e) {
-    msg.textContent = 'Eroare: ' + e.message;
-    msg.className = 'feedback-msg err';
-  }
-}
 
-function renderCleanupLog(log) {
-  const el = document.getElementById('cleanup-log');
-  if (!log || !log.ran_at) { el.textContent = ''; return; }
-  el.textContent = `Ultimul cleanup: ${log.ran_at} — ${log.files_deleted || 0} fișiere, ${log.dirs_deleted || 0} directoare, ${log.db_rows_deleted || 0} rânduri DB, ${((log.bytes_freed || 0) / 1024 / 1024).toFixed(1)} MB eliberate`;
-}
-
-// ── Clear all modal ───────────────────────────────────
-function openClearModal() { document.getElementById('clear-modal').classList.add('open'); }
-function closeClearModal() { document.getElementById('clear-modal').classList.remove('open'); }
-
-async function confirmClearAll() {
-  closeClearModal();
-  try {
-    const r = await fetch('/api/superadmin/clear-all', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({confirm: 'DELETE_ALL'})
-    });
-    const d = await r.json();
-    if (d.ok) {
-      alert(`Șters: ${d.deleted.sqlite_rows} rânduri DB, ${d.deleted.files + d.deleted.dirs} fișiere/directoare`);
-      await loadEventsByDay();
-      await loadTokenStats();
+    function formatTime(iso) {
+      try {
+        return new Date(iso).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+      } catch { return iso; }
     }
-  } catch(e) { alert('Eroare la ștergere: ' + e.message); }
-}
-</script>
+
+    // ── Cleanup config ────────────────────────────────────
+    async function loadCleanupConfig() {
+      try {
+        const r = await fetch('/api/superadmin/cleanup-config-get', { method: 'GET' }).catch(() => null);
+        // Fallback: use health endpoint can't give this; read from cleanup-log
+        const logR = await fetch('/api/superadmin/cleanup-log');
+        const logD = await logR.json();
+        if (logD.log && Object.keys(logD.log).length) {
+          renderCleanupLog(logD.log);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    async function saveCleanupConfig() {
+      const days = parseInt(document.getElementById('cleanup-days').value);
+      const enabled = document.getElementById('auto-cleanup-toggle').checked;
+      try {
+        await fetch('/api/superadmin/cleanup-config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cleanup_days: days, auto_cleanup_enabled: enabled })
+        });
+      } catch (e) { console.error('saveCleanupConfig:', e); }
+    }
+
+    async function runCleanup() {
+      const msg = document.getElementById('cleanup-msg');
+      msg.textContent = 'Se rulează...';
+      msg.className = 'feedback-msg';
+      try {
+        const r = await fetch('/api/superadmin/cleanup-now', { method: 'POST' });
+        const d = await r.json();
+        if (d.ok) {
+          msg.textContent = '✓ Cleanup finalizat';
+          msg.className = 'feedback-msg ok';
+          renderCleanupLog(d.log);
+          await loadEventsByDay();
+          await loadTokenStats();
+        }
+      } catch (e) {
+        msg.textContent = 'Eroare: ' + e.message;
+        msg.className = 'feedback-msg err';
+      }
+    }
+
+    function renderCleanupLog(log) {
+      const el = document.getElementById('cleanup-log');
+      if (!log || !log.ran_at) { el.textContent = ''; return; }
+      el.textContent = `Ultimul cleanup: ${log.ran_at} — ${log.files_deleted || 0} fișiere, ${log.dirs_deleted || 0} directoare, ${log.db_rows_deleted || 0} rânduri DB, ${((log.bytes_freed || 0) / 1024 / 1024).toFixed(1)} MB eliberate`;
+    }
+
+    // ── Clear all modal ───────────────────────────────────
+    function openClearModal() { document.getElementById('clear-modal').classList.add('open'); }
+    function closeClearModal() { document.getElementById('clear-modal').classList.remove('open'); }
+
+    async function confirmClearAll() {
+      closeClearModal();
+      try {
+        const r = await fetch('/api/superadmin/clear-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'DELETE_ALL' })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          alert(`Șters: ${d.deleted.sqlite_rows} rânduri DB, ${d.deleted.files + d.deleted.dirs} fișiere/directoare`);
+          await loadEventsByDay();
+          await loadTokenStats();
+        }
+      } catch (e) { alert('Eroare la ștergere: ' + e.message); }
+    }
+  </script>
 </body>
+
 </html>

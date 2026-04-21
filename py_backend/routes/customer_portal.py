@@ -15,6 +15,7 @@ from services.customer_portal import (
     CustomerPortalExpired,
     CustomerPortalForbidden,
     CustomerPortalNotFound,
+    CustomerPortalOutOfTokens,
     CustomerPortalService,
 )
 
@@ -31,12 +32,55 @@ RATING_OPTIONS = [
 
 
 class CreateCustomerLinkBody(BaseModel):
-    event_id: str = Field(min_length=1)
-    license_plate: str = Field(min_length=1)
-    owner_name: str = Field(min_length=1)
-    mechanic_name: str = Field(min_length=1)
-    phone_number: str = Field(min_length=1)
-    send_sms: bool = True
+    event_id: str = Field(min_length=1, description="ID eveniment (folder name in events/)")
+    license_plate: str = Field(min_length=1, description="Numărul de înmatriculare")
+    owner_name: str = Field(min_length=1, description="Numele proprietarului")
+    mechanic_name: str = Field(min_length=1, description="Numele mecanicului")
+    phone_number: str = Field(min_length=1, description="Nr. telefon destinatar SMS")
+    send_sms: bool = Field(default=True, description="Trimite SMS automat cu link-ul")
+
+
+class SendVideoLinkBody(BaseModel):
+    """Cerere pentru trimiterea unui link video către client — match după plăcuță.
+
+    Dacă `event_id` lipsește, serverul caută automat cel mai recent eveniment
+    în care ALPR a detectat plăcuța specificată.
+    """
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "phone_number": "0767991625",
+                    "license_plate": "TM14TZJ",
+                    "owner_name": "Ion Popescu",
+                    "mechanic_name": "Andrei Mecanicu",
+                }
+            ]
+        }
+    }
+
+    phone_number: str = Field(
+        min_length=4,
+        description="Nr. telefon destinatar (ex. 0767991625 sau +40767991625)",
+        examples=["0767991625"],
+    )
+    license_plate: str = Field(
+        min_length=2,
+        description="Nr. de înmatriculare al mașinii (ex. TM14TZJ, B123ABC)",
+        examples=["TM14TZJ"],
+    )
+    owner_name: str = Field(
+        min_length=1, description="Numele proprietarului", examples=["Ion Popescu"]
+    )
+    mechanic_name: str = Field(
+        min_length=1,
+        description="Numele mecanicului care a făcut constatarea",
+        examples=["Andrei Mecanicu"],
+    )
+    event_id: str | None = Field(
+        default=None,
+        description="Opțional. Dacă lipsește, se folosește cel mai recent eveniment cu plăcuța dată.",
+    )
 
 
 def _service(request: Request) -> CustomerPortalService:
@@ -99,7 +143,128 @@ def _event_metadata(record: dict) -> dict:
     }
 
 
-@router.post("/api/customer-links")
+@router.post(
+    "/api/v1/send-video-link",
+    tags=["Customer Portal"],
+    summary="Trimite link video către client (auto-match după plăcuță)",
+    response_description="Link generat, token și status SMS",
+    responses={
+        200: {
+            "description": "Link generat și SMS trimis cu succes",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "matched_event_id": "EVENT_2026-04-20T22-51-17Z_TM14TZJ",
+                        "license_plate": "TM14TZJ",
+                        "owner_name": "Ion Popescu",
+                        "mechanic_name": "Andrei Mecanicu",
+                        "phone_number": "0767991625",
+                        "public_url": "https://video.scoala-ai.ro/verificare/abcd1234",
+                        "token": "abcd1234efgh5678",
+                        "expires_at": "2026-05-20T22:51:17+00:00",
+                        "sms_status": "sent",
+                        "sms_error": None,
+                        "sms_preview": "Tedde Auto: Ion Popescu, am pregatit constatarea video...",
+                        "warnings": [],
+                    }
+                }
+            },
+        },
+        402: {
+            "description": "Nu mai există tokeni — topup necesar înainte de a trimite SMS-uri",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Nu mai aveți tokeni disponibili. Contactați administratorul pentru a adăuga tokeni."}
+                }
+            },
+        },
+        404: {"description": "Nu s-a găsit eveniment cu plăcuța dată"},
+        409: {"description": "Evenimentul există dar nu are fișier video utilizabil"},
+        400: {"description": "Parametri invalizi"},
+    },
+)
+async def send_video_link(request: Request, body: SendVideoLinkBody) -> dict:
+    """
+    Match plăcuță → generează link securizat cu token → trimite SMS către client.
+
+    **Flow complet:**
+
+    1. Dacă nu se specifică `event_id`, serverul caută cel mai recent eveniment
+       în care ALPR a detectat plăcuța (verifică și numele folderului, și
+       `alpr.json.selected_plate`).
+    2. Se creează un token unic (`token_urlsafe(24)`) și un link public
+       `{public_base_url}/verificare/{token}`.
+    3. Se trimite SMS prin gateway-ul configurat (SMS_GATEWAY_URL) cu text
+       personalizat incluzând numele proprietarului, plăcuța și link-ul.
+    4. Clientul accesează link-ul, completează un scurt quiz de feedback,
+       apoi vede video-urile de la ambele camere.
+
+    **Exemplu cURL:**
+    ```bash
+    curl -X POST http://localhost:8000/api/v1/send-video-link \\
+      -H "Content-Type: application/json" \\
+      -d '{
+        "phone_number": "0767991625",
+        "license_plate": "TM14TZJ",
+        "owner_name": "Ion Popescu",
+        "mechanic_name": "Andrei Mecanicu"
+      }'
+    ```
+
+    **Notă:** Fiecare trimitere decrementează contorul `tokens_remaining`
+    (model de facturare 1 token = 1 vehicul).
+    """
+    svc = _service(request)
+    event_id = body.event_id
+    if not event_id:
+        event_id = await svc.find_latest_event_by_plate(body.license_plate)
+        if not event_id:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Nu s-a găsit niciun eveniment cu plăcuța {body.license_plate!r}.",
+            )
+    try:
+        result = await svc.create_link(
+            event_id=event_id,
+            license_plate=body.license_plate,
+            owner_name=body.owner_name,
+            mechanic_name=body.mechanic_name,
+            phone_number=body.phone_number,
+            send_sms=True,
+        )
+    except CustomerPortalOutOfTokens as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+    except CustomerPortalNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CustomerPortalConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except CustomerPortalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "success": True,
+        "matched_event_id": result["event_id"],
+        "license_plate": result["license_plate"],
+        "owner_name": result["owner_name"],
+        "mechanic_name": result["mechanic_name"],
+        "phone_number": result["phone_number"],
+        "public_url": result["public_url"],
+        "token": result["token"],
+        "expires_at": result["expires_at"],
+        "sms_status": result["sms_status"],
+        "sms_error": result.get("sms_error"),
+        "sms_preview": result.get("sms_preview"),
+        "warnings": result.get("warnings", []),
+        "recording_partial": result.get("recording_partial", False),
+    }
+
+
+@router.post(
+    "/api/customer-links",
+    tags=["Customer Portal"],
+    summary="Creează link client pentru un event_id specific",
+)
 async def create_customer_link(request: Request, body: CreateCustomerLinkBody) -> dict:
     try:
         result = await _service(request).create_link(
@@ -110,6 +275,8 @@ async def create_customer_link(request: Request, body: CreateCustomerLinkBody) -
             phone_number=body.phone_number,
             send_sms=body.send_sms,
         )
+    except CustomerPortalOutOfTokens as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
     except CustomerPortalNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except CustomerPortalConflict as exc:

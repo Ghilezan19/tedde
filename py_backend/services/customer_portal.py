@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from camera.recording import workflow_output_status
+from camera.recording import resolve_camera_file, workflow_output_status
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,11 @@ class CustomerPortalForbidden(CustomerPortalError):
 
 
 class CustomerPortalExpired(CustomerPortalError):
+    pass
+
+
+class CustomerPortalOutOfTokens(CustomerPortalError):
+    """Raised when attempting to send an SMS but no tokens remain on the account."""
     pass
 
 
@@ -106,12 +111,60 @@ class CustomHttpSmsSender:
         )
 
 
+class SimpleGatewaySmsSender:
+    """SMS sender for the simple gateway: POST {apiKey, phone, message} to /send-sms."""
+
+    async def send_sms(self, to: str, text: str) -> SendResult:
+        base = (settings.sms_gateway_url or "").rstrip("/")
+        api_key = settings.sms_gateway_api_key or ""
+        if not base or not api_key:
+            return SendResult(
+                status="failed",
+                error="SMS gateway not configured (SMS_GATEWAY_URL / SMS_GATEWAY_API_KEY missing).",
+            )
+        url = f"{base}/send-sms"
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    url,
+                    json={"apiKey": api_key, "phone": to, "message": text},
+                )
+        except Exception as exc:
+            logger.warning("[SMS/gateway] request failed to=%s error=%s", _mask_phone(to), exc)
+            return SendResult(status="failed", error=str(exc))
+
+        if 200 <= response.status_code < 300:
+            logger.info(
+                "[SMS/gateway] sent to=%s status=%s",
+                _mask_phone(to),
+                response.status_code,
+            )
+            return SendResult(status="sent", http_status=response.status_code)
+
+        body_excerpt = (response.text or "")[:200]
+        logger.warning(
+            "[SMS/gateway] failed to=%s status=%s body=%s",
+            _mask_phone(to),
+            response.status_code,
+            body_excerpt,
+        )
+        return SendResult(
+            status="failed",
+            error=f"Provider returned HTTP {response.status_code}: {body_excerpt}",
+            http_status=response.status_code,
+        )
+
+
 class CustomerPortalService:
     def __init__(self) -> None:
         self._db_path = settings.customer_portal_db_abs
         self._sms_sender = self._build_sms_sender()
 
     def _build_sms_sender(self):
+        # If the simple gateway is configured, prefer it (the live production gateway).
+        if settings.sms_gateway_url and settings.sms_gateway_api_key:
+            logger.info("[SMS] Using SimpleGatewaySmsSender (%s)", settings.sms_gateway_url)
+            return SimpleGatewaySmsSender()
         backend = (settings.sms_backend or "mock").lower()
         if backend == "custom_http":
             return CustomHttpSmsSender()
@@ -164,6 +217,23 @@ class CustomerPortalService:
                     key   TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS token_history (
+                    id             INTEGER PRIMARY KEY,
+                    kind           TEXT NOT NULL,           -- 'consume' | 'topup' | 'adjust'
+                    delta          INTEGER NOT NULL,        -- negative for consume, positive otherwise
+                    balance_after  INTEGER NOT NULL,        -- remaining tokens after the event
+                    link_id        INTEGER NULL,            -- FK → customer_links.id (for 'consume')
+                    license_plate  TEXT NULL,
+                    phone_number   TEXT NULL,
+                    owner_name     TEXT NULL,
+                    mechanic_name  TEXT NULL,
+                    note           TEXT NULL,
+                    created_at     TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_token_history_created
+                    ON token_history(created_at DESC);
                 """
             )
             # Seed default values if not already present
@@ -211,29 +281,194 @@ class CustomerPortalService:
         except ValueError:
             return 0
 
-    def set_tokens_remaining(self, count: int) -> None:
-        self.set_config_value("tokens_remaining", str(max(0, count)))
-
-    def decrement_tokens(self) -> int:
-        """Decrement tokens by 1. Returns new count. Logs warning at 0."""
+    def set_tokens_remaining(self, count: int, *, note: str | None = None) -> int:
+        """Set token balance to an exact value and log the delta as an 'adjust' entry."""
+        new_val = max(0, int(count))
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT value FROM system_config WHERE key = 'tokens_remaining'"
             ).fetchone()
             current = int(row["value"]) if row else 0
-            new_val = max(0, current - 1)
             conn.execute(
                 "INSERT OR REPLACE INTO system_config (key, value) VALUES ('tokens_remaining', ?)",
                 (str(new_val),),
             )
+            delta = new_val - current
+            if delta != 0:
+                kind = "topup" if delta > 0 else "adjust"
+                self._insert_token_history_sync(
+                    conn,
+                    kind=kind,
+                    delta=delta,
+                    balance_after=new_val,
+                    note=note or ("Manual set" if kind == "adjust" else "Manual top-up"),
+                )
+            conn.commit()
+        return new_val
+
+    def consume_token(
+        self,
+        *,
+        link_id: int | None = None,
+        license_plate: str | None = None,
+        phone_number: str | None = None,
+        owner_name: str | None = None,
+        mechanic_name: str | None = None,
+        note: str | None = None,
+    ) -> int:
+        """Atomically decrement tokens by 1 and append an audit entry.
+
+        Returns the new balance. Raises CustomerPortalOutOfTokens if balance is
+        already 0 — callers should pre-check with `get_tokens_remaining()` if
+        they need to fail early.
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT value FROM system_config WHERE key = 'tokens_remaining'"
+            ).fetchone()
+            current = int(row["value"]) if row else 0
+            if current <= 0:
+                raise CustomerPortalOutOfTokens("Nu mai aveți tokeni disponibili.")
+            new_val = current - 1
+            conn.execute(
+                "INSERT OR REPLACE INTO system_config (key, value) VALUES ('tokens_remaining', ?)",
+                (str(new_val),),
+            )
+            self._insert_token_history_sync(
+                conn,
+                kind="consume",
+                delta=-1,
+                balance_after=new_val,
+                link_id=link_id,
+                license_plate=license_plate,
+                phone_number=phone_number,
+                owner_name=owner_name,
+                mechanic_name=mechanic_name,
+                note=note,
+            )
             conn.commit()
         if new_val == 0:
-            logger.warning("[TOKENS] Token count reached 0 — no tokens remaining for billing")
+            logger.warning("[TOKENS] Token count reached 0 after consume.")
         return new_val
+
+    def _insert_token_history_sync(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        kind: str,
+        delta: int,
+        balance_after: int,
+        link_id: int | None = None,
+        license_plate: str | None = None,
+        phone_number: str | None = None,
+        owner_name: str | None = None,
+        mechanic_name: str | None = None,
+        note: str | None = None,
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO token_history (
+                kind, delta, balance_after, link_id,
+                license_plate, phone_number, owner_name, mechanic_name,
+                note, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                kind,
+                int(delta),
+                int(balance_after),
+                link_id,
+                license_plate,
+                phone_number,
+                owner_name,
+                mechanic_name,
+                note,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+
+    def list_token_history(self, *, limit: int = 100, offset: int = 0) -> dict[str, Any]:
+        """Return recent token_history rows (newest first) with totals."""
+        limit = max(1, min(int(limit), 500))
+        offset = max(0, int(offset))
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, kind, delta, balance_after, link_id,
+                       license_plate, phone_number, owner_name, mechanic_name,
+                       note, created_at
+                FROM token_history
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ).fetchall()
+            total_row = conn.execute(
+                "SELECT COUNT(*) AS n FROM token_history"
+            ).fetchone()
+            consumed_row = conn.execute(
+                "SELECT COALESCE(SUM(-delta), 0) AS n FROM token_history WHERE kind='consume'"
+            ).fetchone()
+            topped_row = conn.execute(
+                "SELECT COALESCE(SUM(delta), 0) AS n FROM token_history WHERE kind='topup'"
+            ).fetchone()
+        return {
+            "total": int(total_row["n"] if total_row else 0),
+            "total_consumed": int(consumed_row["n"] if consumed_row else 0),
+            "total_topped_up": int(topped_row["n"] if topped_row else 0),
+            "items": [dict(r) for r in rows],
+        }  # type: ignore[return-value]
 
     def _event_dir(self, event_id: str) -> Path:
         safe_event_id = Path(event_id).name
         return settings.events_dir_abs / safe_event_id
+
+    async def find_latest_event_by_plate(self, license_plate: str) -> str | None:
+        """Find the most recent event folder whose ALPR plate matches the given one.
+
+        Match strategy (case-insensitive, punctuation stripped):
+        1. Folder name contains the normalised plate (e.g. EVENT_<ts>_TM14TZJ).
+        2. alpr.json `selected_plate` equals the normalised plate.
+
+        Returns the folder name (event_id) or None if no match found.
+        """
+        return await asyncio.to_thread(self._find_latest_event_by_plate_sync, license_plate)
+
+    def _find_latest_event_by_plate_sync(self, license_plate: str) -> str | None:
+        plate_norm = re.sub(r"[^A-Z0-9]", "", (license_plate or "").upper())
+        if not plate_norm:
+            return None
+
+        events_root = settings.events_dir_abs
+        if not events_root.exists():
+            return None
+
+        candidates: list[tuple[float, str]] = []
+        for d in events_root.iterdir():
+            if not d.is_dir() or d.name.startswith(".tmp_") or d.name.startswith("."):
+                continue
+
+            folder_norm = re.sub(r"[^A-Z0-9]", "", d.name.upper())
+            if plate_norm in folder_norm:
+                candidates.append((d.stat().st_mtime, d.name))
+                continue
+
+            alpr_json = d / "alpr.json"
+            if not alpr_json.exists():
+                continue
+            try:
+                data = json.loads(alpr_json.read_text(encoding="utf-8")) or {}
+            except Exception:
+                continue
+            selected = str(data.get("selected_plate") or "")
+            selected_norm = re.sub(r"[^A-Z0-9]", "", selected.upper())
+            if selected_norm and selected_norm == plate_norm:
+                candidates.append((d.stat().st_mtime, d.name))
+
+        if not candidates:
+            return None
+        candidates.sort(reverse=True)
+        return candidates[0][1]
 
     def _load_event_info(self, event_id: str) -> dict[str, Any]:
         event_dir = self._event_dir(event_id)
@@ -247,10 +482,10 @@ class CustomerPortalService:
                 "Event has no usable video (need at least one camera file with sufficient size)."
             )
 
-        camera1 = event_dir / "camera1.mp4"
-        camera2 = event_dir / "camera2.mp4"
-        has_c1 = bool(outs.get("camera1"))
-        has_c2 = bool(outs.get("camera2"))
+        camera1 = resolve_camera_file(event_dir, 1)
+        camera2 = resolve_camera_file(event_dir, 2)
+        has_c1 = bool(outs.get("camera1")) and camera1 is not None
+        has_c2 = bool(outs.get("camera2")) and camera2 is not None
         recording_partial = n_ok == 1
 
         alpr_payload: dict[str, Any] = {}
@@ -336,6 +571,20 @@ class CustomerPortalService:
         if not clean_phone_number:
             raise CustomerPortalError("phone_number is required")
 
+        # ── Token enforcement: fail early BEFORE creating the link / calling the
+        # SMS gateway. Billing model: 1 token = 1 SMS to 1 customer.
+        if send_sms:
+            tokens_left = await asyncio.to_thread(self.get_tokens_remaining)
+            if tokens_left <= 0:
+                logger.warning(
+                    "[TOKENS] Refusing send_video_link for plate=%s phone=%s — balance=0",
+                    clean_license_plate,
+                    _mask_phone(clean_phone_number),
+                )
+                raise CustomerPortalOutOfTokens(
+                    "Nu mai aveți tokeni disponibili. Contactați administratorul pentru a adăuga tokeni."
+                )
+
         payload = {
             "event_id": event_info["event_id"],
             "event_folder": event_info["event_folder"],
@@ -371,10 +620,26 @@ class CustomerPortalService:
             payload["sms_error"] = result.error
             payload["sent_at"] = sent_at
 
-            # Decrement tokens on successful send (billing model: 1 token per vehicle)
+            # Decrement tokens + audit log on successful send
             if result.status in {"sent", "mocked"}:
-                tokens_left = await asyncio.to_thread(self.decrement_tokens)
-                logger.info("[TOKENS] Decremented after SMS send — remaining: %d", tokens_left)
+                try:
+                    tokens_left = await asyncio.to_thread(
+                        self.consume_token,
+                        link_id=link_id,
+                        license_plate=clean_license_plate,
+                        phone_number=clean_phone_number,
+                        owner_name=clean_owner_name,
+                        mechanic_name=clean_mechanic_name,
+                        note=f"SMS {result.status}",
+                    )
+                    logger.info("[TOKENS] Consumed after SMS send — remaining: %d", tokens_left)
+                except CustomerPortalOutOfTokens:
+                    # Race: balance hit 0 between pre-check and send. Log but
+                    # don't fail the request — SMS already went out.
+                    logger.warning(
+                        "[TOKENS] Race: balance=0 at consume; SMS already sent to %s",
+                        _mask_phone(clean_phone_number),
+                    )
 
         out = self._serialize_link(payload)
         out["warnings"] = list(event_info.get("recording_warnings") or [])
@@ -574,13 +839,14 @@ class CustomerPortalService:
             conn.commit()
 
     async def resolve_video_path(self, token: str, camera_id: int) -> Path:
+        # Security: the random token is the sole credential — quiz is a UX gate,
+        # not a security gate. Serving video pre-quiz lets the browser preload
+        # while the customer fills the feedback form (instant-play on submit).
         row = await self.get_portal_record(token)
-        if not row["quiz_completed"]:
-            raise CustomerPortalForbidden("Quiz must be completed before video access")
         event_dir = self._event_dir(row["event_id"])
-        target = event_dir / f"camera{camera_id}.mp4"
-        if not target.exists():
-            raise CustomerPortalNotFound(f"camera{camera_id}.mp4 is missing")
+        target = resolve_camera_file(event_dir, camera_id)
+        if target is None or not target.exists():
+            raise CustomerPortalNotFound(f"Video for camera {camera_id} is missing")
         return target
 
     def _serialize_link(self, row: dict[str, Any]) -> dict[str, Any]:

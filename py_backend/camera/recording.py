@@ -25,6 +25,23 @@ _FFMPEG_TERM_WAIT_SEC = 15.0
 MIN_WORKFLOW_MP4_BYTES = 8192
 
 
+def resolve_camera_file(event_dir: Path, cam: int) -> Path | None:
+    """Return the mp4 path for this camera, supporting legacy and plate-prefixed naming.
+
+    Legacy: camera{N}.mp4  (pre-ALPR-finalize)
+    New:    <plate>_cam{N}.mp4 (after workflow finalize renames)
+    """
+    legacy = event_dir / f"camera{cam}.mp4"
+    if legacy.is_file():
+        return legacy
+    matches = sorted(
+        event_dir.glob(f"*_cam{cam}.mp4"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return matches[0] if matches else None
+
+
 def workflow_output_status(
     event_dir: Path, *, expected_cameras: tuple[int, ...] = (1, 2)
 ) -> tuple[dict[str, bool], list[str]]:
@@ -33,8 +50,8 @@ def workflow_output_status(
     warnings: list[str] = []
     for cam in expected_cameras:
         key = f"camera{cam}"
-        path = event_dir / f"{key}.mp4"
-        if path.is_file():
+        path = resolve_camera_file(event_dir, cam)
+        if path is not None and path.is_file():
             sz = path.stat().st_size
             ok = sz >= MIN_WORKFLOW_MP4_BYTES
             out[key] = ok
@@ -235,18 +252,31 @@ class RecordingManager:
         )
         args = [
             settings.ffmpeg_path,
+            # ── Input flags: regenerate timestamps from the wallclock instead of
+            #    trusting the RTSP stream's PTS (fixes the 30h "ghost" duration
+            #    produced by some Hikvision/HiLook substreams / PTZ with bad PTS).
+            "-fflags", "+genpts+discardcorrupt",
+            "-use_wallclock_as_timestamps", "1",
             "-rtsp_transport", "tcp",
             "-timeout", "5000000",
             "-i", rtsp_url,
+            # ── Video encoding: ultrafast preset for realtime, CRF 23 keeps good
+            #    quality while producing files ~3x smaller than CRF 18.
             "-c:v", "libx264",
             "-preset", "ultrafast",
-            "-crf", "18",
+            "-tune", "zerolatency",
+            "-crf", "23",
             "-pix_fmt", "yuv420p",
-            "-movflags", "+faststart",
             "-r", "25",
-            "-c:a", "aac",
-            "-ar", "16000",
-            "-ac", "1",
+            "-g", "50",          # keyframe every 2s → fast seek / progressive load
+            "-keyint_min", "50",
+            "-sc_threshold", "0",
+            # Container: fragmented MP4 mode is NOT used so we can keep faststart.
+            "-movflags", "+faststart",
+            # ── Audio: stripped (portal recordings are muted by design)
+            "-an",
+            # Drop any skew between audio/video introduced by wallclock retiming.
+            "-vsync", "cfr",
             "-f", "mp4",
             "-y",
             str(filepath),

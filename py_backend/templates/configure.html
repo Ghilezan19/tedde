@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <html lang="ro">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tedde — Configurare Sistem</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     :root {
       --bg: #0f0f1a;
@@ -35,15 +42,37 @@
       align-items: center;
       justify-content: space-between;
       padding: 0.9rem 1.5rem;
-      position: sticky; top: 0; z-index: 100;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .topbar h1 { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
-    .topbar-links { display: flex; gap: 1rem; font-size: 0.82rem; }
-    .topbar-links a { color: var(--muted); text-decoration: none; }
-    .topbar-links a:hover { color: var(--text); }
+
+    .topbar h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .topbar-links {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.82rem;
+    }
+
+    .topbar-links a {
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .topbar-links a:hover {
+      color: var(--text);
+    }
 
     /* ── Layout ──────────────────────────────── */
-    .layout { display: flex; min-height: calc(100vh - 53px); }
+    .layout {
+      display: flex;
+      min-height: calc(100vh - 53px);
+    }
 
     /* ── Tab sidebar ────────��────────────────── */
     .tab-sidebar {
@@ -67,14 +96,33 @@
       transition: color 0.15s, background 0.15s;
       border-left: 3px solid transparent;
     }
-    .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
-    .tab-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(233,69,96,0.07); }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-left-color: var(--accent);
+      background: rgba(233, 69, 96, 0.07);
+    }
 
     /* ── Main content ────────────────────────── */
-    .main-content { flex: 1; padding: 1.5rem; overflow-y: auto; max-width: 860px; }
+    .main-content {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      max-width: 860px;
+    }
 
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
 
     /* ── Section cards ───────────────────────── */
     .section-card {
@@ -101,7 +149,11 @@
       gap: 1rem;
     }
 
-    .form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
 
     label {
       font-size: 0.78rem;
@@ -109,8 +161,11 @@
       font-weight: 500;
     }
 
-    input[type="text"], input[type="number"], input[type="password"],
-    select, textarea {
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select,
+    textarea {
       background: var(--input-bg);
       border: 1px solid var(--border);
       border-radius: 6px;
@@ -121,21 +176,55 @@
       transition: border-color 0.15s;
       width: 100%;
     }
-    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 
-    textarea { resize: vertical; min-height: 80px; font-family: monospace; }
-
-    input[type="range"] { width: 100%; accent-color: var(--accent); }
-
-    .range-row { display: flex; gap: 0.75rem; align-items: center; }
-    .range-row input[type="range"] { flex: 1; }
-    .range-val {
-      min-width: 42px; text-align: right; font-size: 0.9rem;
-      color: var(--accent); font-weight: 600;
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
     }
 
-    .toggle-row { display: flex; align-items: center; gap: 0.75rem; cursor: pointer; }
-    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .range-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .range-row input[type="range"] {
+      flex: 1;
+    }
+
+    .range-val {
+      min-width: 42px;
+      text-align: right;
+      font-size: 0.9rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+
+    .toggle-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
 
     /* ── Buttons ─────────────────────────────── */
     .btn {
@@ -147,17 +236,39 @@
       cursor: pointer;
       transition: opacity 0.15s, transform 0.1s;
     }
-    .btn:active { transform: scale(0.97); }
-    .btn:hover { opacity: 0.88; }
 
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: #2d2d4e; color: var(--text); }
-    .btn-success { background: var(--success); color: #fff; }
-    .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn:hover {
+      opacity: 0.88;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #2d2d4e;
+      color: var(--text);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.82rem;
+    }
 
     /* ── Save bar ────────────────────────────── */
     .save-bar {
-      position: sticky; bottom: 0;
+      position: sticky;
+      bottom: 0;
       background: var(--card);
       border-top: 1px solid var(--border);
       padding: 0.9rem 1.5rem;
@@ -171,11 +282,21 @@
       font-size: 0.85rem;
       color: var(--muted);
     }
-    .save-status.ok { color: var(--success); }
-    .save-status.err { color: var(--danger); }
+
+    .save-status.ok {
+      color: var(--success);
+    }
+
+    .save-status.err {
+      color: var(--danger);
+    }
 
     /* ── PTZ panel ───────────────────────────── */
-    .ptz-layout { display: grid; grid-template-columns: 1fr 200px; gap: 1.25rem; }
+    .ptz-layout {
+      display: grid;
+      grid-template-columns: 1fr 200px;
+      gap: 1.25rem;
+    }
 
     #stream-preview {
       width: 100%;
@@ -201,21 +322,45 @@
       font-size: 1.3rem;
       cursor: pointer;
       transition: background 0.12s;
-      display: flex; align-items: center; justify-content: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .ptz-btn:hover { background: #e94560; }
-    .ptz-btn.center { font-size: 0.75rem; font-weight: 600; color: var(--muted); }
 
-    .presets-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+    .ptz-btn:hover {
+      background: #e94560;
+    }
+
+    .ptz-btn.center {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .presets-list {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
     .preset-item {
-      display: flex; align-items: center; gap: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       background: #13131f;
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 0.4rem 0.65rem;
       font-size: 0.85rem;
     }
-    .preset-item .preset-token { flex: 1; font-family: monospace; color: var(--muted); font-size: 0.78rem; }
+
+    .preset-item .preset-token {
+      flex: 1;
+      font-family: monospace;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
 
     /* ── ALPR test result ────────────────────── */
     .alpr-result {
@@ -226,25 +371,45 @@
       margin-top: 0.75rem;
       font-size: 0.85rem;
     }
+
     .alpr-plate {
       font-size: 1.5rem;
       font-weight: 700;
       color: var(--accent);
       letter-spacing: 0.06em;
     }
-    .alpr-snapshot { max-height: 180px; border-radius: 6px; margin-top: 0.5rem; }
+
+    .alpr-snapshot {
+      max-height: 180px;
+      border-radius: 6px;
+      margin-top: 0.5rem;
+    }
 
     /* ── Status pills ────────────────────────── */
     .pill {
-      display: inline-flex; align-items: center; gap: 0.3rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
       padding: 0.2rem 0.55rem;
       border-radius: 999px;
       font-size: 0.75rem;
       font-weight: 600;
     }
-    .pill-ok { background: rgba(34,197,94,0.15); color: var(--success); }
-    .pill-err { background: rgba(239,68,68,0.15); color: var(--danger); }
-    .pill-warn { background: rgba(245,158,11,0.15); color: var(--warning); }
+
+    .pill-ok {
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--success);
+    }
+
+    .pill-err {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    .pill-warn {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--warning);
+    }
 
     .esp-status-grid {
       display: grid;
@@ -259,412 +424,720 @@
       border-radius: 8px;
       padding: 0.65rem 0.85rem;
     }
-    .esp-stat-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-    .esp-stat-value { font-size: 1.05rem; font-weight: 700; margin-top: 0.15rem; }
+
+    .esp-stat-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .esp-stat-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-top: 0.15rem;
+    }
+
+    /* ── Live status cards (camera health) ──────────── */
+    .health-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .health-card {
+      background: #13131f;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .health-card .hc-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .health-card .hc-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .health-card .hc-metrics {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .health-card .hc-metrics b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ── Scan results table ─────────────────────────── */
+    .scan-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.82rem;
+    }
+
+    .scan-table th,
+    .scan-table td {
+      text-align: left;
+      padding: 0.4rem 0.55rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .scan-table th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .scan-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .scan-kind {
+      padding: 0.12rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .scan-kind.esp {
+      background: rgba(233, 69, 96, 0.18);
+      color: var(--accent);
+    }
+
+    .scan-kind.camera {
+      background: rgba(59, 130, 246, 0.18);
+      color: #60a5fa;
+    }
+
+    .scan-kind.router {
+      background: rgba(168, 85, 247, 0.18);
+      color: #c084fc;
+    }
+
+    .scan-kind.server {
+      background: rgba(34, 197, 94, 0.18);
+      color: var(--success);
+    }
+
+    .scan-kind.unknown {
+      background: rgba(100, 116, 139, 0.18);
+      color: var(--muted);
+    }
+
+    /* ── Progress bar ───────────────────────────────── */
+    .bar {
+      height: 6px;
+      background: #0f0f1a;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .bar>i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--warning), var(--danger));
+      transition: width 0.3s;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="topbar">
-  <h1>⚙️ Configurare Sistem</h1>
-  <div class="topbar-links">
-    <a href="/admin">Admin</a>
-    <a href="/super-admin">Super-Admin</a>
-    <a href="/">Dashboard</a>
+  <div class="topbar">
+    <h1>⚙️ Configurare Sistem</h1>
+    <div class="topbar-links">
+      <a href="/admin">Admin</a>
+      <a href="/super-admin">Super-Admin</a>
+      <a href="/">Dashboard</a>
+    </div>
   </div>
-</div>
 
-<div class="layout">
-  <!-- Sidebar tabs -->
-  <nav class="tab-sidebar">
-    <button class="tab-btn active" data-tab="camere">📷 Camere</button>
-    <button class="tab-btn" data-tab="ptz">🎯 PTZ Preseturi</button>
-    <button class="tab-btn" data-tab="alpr">🔍 ALPR</button>
-    <button class="tab-btn" data-tab="inregistrare">⏺ Înregistrare</button>
-    <button class="tab-btn" data-tab="portal">📱 Portal & SMS</button>
-    <button class="tab-btn" data-tab="esp">🔌 ESP / Box</button>
-  </nav>
+  <div class="layout">
+    <!-- Sidebar tabs -->
+    <nav class="tab-sidebar">
+      <button class="tab-btn" data-tab="sistem">📊 Sistem</button>
+      <button class="tab-btn active" data-tab="camere">📷 Camere</button>
+      <button class="tab-btn" data-tab="ptz">🎯 PTZ Preseturi</button>
+      <button class="tab-btn" data-tab="alpr">🔍 ALPR</button>
+      <button class="tab-btn" data-tab="inregistrare">⏺ Înregistrare</button>
+      <button class="tab-btn" data-tab="portal">📱 Portal & SMS</button>
+      <button class="tab-btn" data-tab="esp">🔌 ESP / Box</button>
+      <button class="tab-btn" data-tab="galerie">📹 Video Galerie</button>
+      <button class="tab-btn" data-tab="retea">🌐 Rețea Scanner</button>
+    </nav>
 
-  <!-- Main content area -->
-  <div class="main-content">
+    <!-- Main content area -->
+    <div class="main-content">
 
-    <!-- ══════════ Tab: Camere ══════════ -->
-    <div class="tab-panel active" id="tab-camere">
+      <!-- ══════════ Tab: Sistem ══════════ -->
+      <div class="tab-panel" id="tab-sistem">
+        <div class="section-card">
+          <div class="section-title">Stare sistem <span id="sys-host"
+              style="text-transform:none;font-weight:500;color:var(--muted);letter-spacing:0;"></span></div>
+          <div class="esp-status-grid" id="sys-grid">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
+          </div>
+        </div>
 
-      <div class="section-card">
-        <div class="section-title">Camera 1 — Fixă</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>IP Cameră 1</label>
-            <input type="text" id="CAMERA_IP" value="{{ env.get('CAMERA_IP','') }}" placeholder="192.168.1.100">
+        <div class="section-card">
+          <div class="section-title">Servicii acces remote</div>
+          <div class="esp-status-grid" id="sys-services">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
           </div>
-          <div class="form-group">
-            <label>Port RTSP</label>
-            <input type="number" id="CAMERA_RTSP_PORT" value="{{ env.get('CAMERA_RTSP_PORT','554') }}">
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Stare camere live</div>
+          <div class="health-row" id="sys-cameras">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
           </div>
-          <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="CAMERA_USERNAME" value="{{ env.get('CAMERA_USERNAME','admin') }}">
-          </div>
-          <div class="form-group">
-            <label>Parolă</label>
-            <input type="password" id="CAMERA_PASSWORD" placeholder="(nemodificată)">
-          </div>
-          <div class="form-group">
-            <label>Path stream principal</label>
-            <input type="text" id="RTSP_MAIN_PATH" value="{{ env.get('RTSP_MAIN_PATH','/Streaming/channels/101') }}">
-          </div>
-          <div class="form-group">
-            <label>Path stream secundar</label>
-            <input type="text" id="RTSP_SUB_PATH" value="{{ env.get('RTSP_SUB_PATH','/Streaming/channels/102') }}">
-          </div>
+          <button class="btn btn-secondary btn-sm" onclick="refreshAll()">🔄 Reîmprospătează tot</button>
         </div>
       </div>
 
-      <div class="section-card">
-        <div class="section-title">Camera 2 — PTZ</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>IP Cameră 2</label>
-            <input type="text" id="CAMERA2_IP" value="{{ env.get('CAMERA2_IP','') }}" placeholder="192.168.1.101">
-          </div>
-          <div class="form-group">
-            <label>Port RTSP</label>
-            <input type="number" id="CAMERA2_RTSP_PORT" value="{{ env.get('CAMERA2_RTSP_PORT','554') }}">
-          </div>
-          <div class="form-group">
-            <label>Port HTTP (ISAPI)</label>
-            <input type="number" id="CAMERA2_HTTP_PORT" value="{{ env.get('CAMERA2_HTTP_PORT','80') }}">
-          </div>
-          <div class="form-group">
-            <label>Port SDK</label>
-            <input type="number" id="CAMERA2_SDK_PORT" value="{{ env.get('CAMERA2_SDK_PORT','8000') }}">
-          </div>
-          <div class="form-group">
-            <label>Username</label>
-            <input type="text" id="CAMERA2_USERNAME" value="{{ env.get('CAMERA2_USERNAME','admin') }}">
-          </div>
-          <div class="form-group">
-            <label>Parolă</label>
-            <input type="password" id="CAMERA2_PASSWORD" placeholder="(nemodificată)">
-          </div>
-          <div class="form-group">
-            <label>Profil ONVIF</label>
-            <input type="text" id="CAMERA2_ONVIF_PROFILE" value="{{ env.get('CAMERA2_ONVIF_PROFILE','Profile_1') }}">
-          </div>
-        </div>
-        <div style="margin-top:1rem;">
-          <button class="btn btn-secondary btn-sm" onclick="testConnectivity()">🔗 Testează conectivitate</button>
-          <span id="conn-result" style="margin-left:0.75rem;font-size:0.82rem;"></span>
-        </div>
-      </div>
-    </div>
+      <!-- ══════════ Tab: Camere ══════════ -->
+      <div class="tab-panel active" id="tab-camere">
 
-    <!-- ══════════ Tab: PTZ Preseturi ══════════ -->
-    <div class="tab-panel" id="tab-ptz">
-      <div class="section-card">
-        <div class="section-title">Previzualizare live — Camera 2</div>
-        <img id="stream-preview" src="/api/stream?camera=2&fps=8" alt="Stream Camera 2">
-      </div>
+        <div class="section-card">
+          <div class="section-title">Stare conexiune camere</div>
+          <div class="health-row" id="cam-health">
+            <div style="color:var(--muted);font-size:0.85rem;">Apăsați <b>Verifică acum</b>.</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="refreshCameraHealth()">🔄 Verifică acum</button>
+          <button class="btn btn-secondary btn-sm"
+            onclick="document.getElementById('tab-retea-btn')?.click?.() || switchTab('retea')">🔎 Scanează rețeaua
+            locală</button>
+        </div>
 
-      <div class="section-card">
-        <div class="section-title">Control PTZ</div>
-        <div class="ptz-layout">
-          <div>
-            <div class="ptz-joystick">
-              <div></div>
-              <button class="ptz-btn" onmousedown="ptzMove('up')" onmouseup="ptzStop()" ontouchstart="ptzMove('up')" ontouchend="ptzStop()">▲</button>
-              <div></div>
-              <button class="ptz-btn" onmousedown="ptzMove('left')" onmouseup="ptzStop()" ontouchstart="ptzMove('left')" ontouchend="ptzStop()">◀</button>
-              <button class="ptz-btn center" onmousedown="ptzStop()">■</button>
-              <button class="ptz-btn" onmousedown="ptzMove('right')" onmouseup="ptzStop()" ontouchstart="ptzMove('right')" ontouchend="ptzStop()">▶</button>
-              <div></div>
-              <button class="ptz-btn" onmousedown="ptzMove('down')" onmouseup="ptzStop()" ontouchstart="ptzMove('down')" ontouchend="ptzStop()">▼</button>
-              <div></div>
+        <div class="section-card">
+          <div class="section-title">Camera 1 — Fixă</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IP Cameră 1</label>
+              <input type="text" id="CAMERA_IP" value="{{ env.get('CAMERA_IP','') }}" placeholder="192.168.1.100">
             </div>
-            <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-              <button class="btn btn-secondary btn-sm" onmousedown="ptzZoom('in')" onmouseup="ptzStop()">🔍+</button>
-              <button class="btn btn-secondary btn-sm" onmousedown="ptzZoom('out')" onmouseup="ptzStop()">🔍-</button>
+            <div class="form-group">
+              <label>Port RTSP</label>
+              <input type="number" id="CAMERA_RTSP_PORT" value="{{ env.get('CAMERA_RTSP_PORT','554') }}">
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="CAMERA_USERNAME" value="{{ env.get('CAMERA_USERNAME','admin') }}">
+            </div>
+            <div class="form-group">
+              <label>Parolă</label>
+              <input type="password" id="CAMERA_PASSWORD" placeholder="(nemodificată)">
+            </div>
+            <div class="form-group">
+              <label>Path stream principal</label>
+              <input type="text" id="RTSP_MAIN_PATH" value="{{ env.get('RTSP_MAIN_PATH','/Streaming/channels/101') }}">
+            </div>
+            <div class="form-group">
+              <label>Path stream secundar</label>
+              <input type="text" id="RTSP_SUB_PATH" value="{{ env.get('RTSP_SUB_PATH','/Streaming/channels/102') }}">
             </div>
           </div>
-          <div>
-            <label style="font-size:0.78rem;color:var(--muted);">Viteză PTZ</label>
-            <input type="range" min="1" max="7" value="3" id="ptz-speed" style="margin-top:0.4rem;">
-            <div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem;">Nivel <span id="ptz-speed-val">3</span></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Camera 2 — PTZ</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IP Cameră 2</label>
+              <input type="text" id="CAMERA2_IP" value="{{ env.get('CAMERA2_IP','') }}" placeholder="192.168.1.101">
+            </div>
+            <div class="form-group">
+              <label>Port RTSP</label>
+              <input type="number" id="CAMERA2_RTSP_PORT" value="{{ env.get('CAMERA2_RTSP_PORT','554') }}">
+            </div>
+            <div class="form-group">
+              <label>Port HTTP (ISAPI)</label>
+              <input type="number" id="CAMERA2_HTTP_PORT" value="{{ env.get('CAMERA2_HTTP_PORT','80') }}">
+            </div>
+            <div class="form-group">
+              <label>Port SDK</label>
+              <input type="number" id="CAMERA2_SDK_PORT" value="{{ env.get('CAMERA2_SDK_PORT','8000') }}">
+            </div>
+            <div class="form-group">
+              <label>Username</label>
+              <input type="text" id="CAMERA2_USERNAME" value="{{ env.get('CAMERA2_USERNAME','admin') }}">
+            </div>
+            <div class="form-group">
+              <label>Parolă</label>
+              <input type="password" id="CAMERA2_PASSWORD" placeholder="(nemodificată)">
+            </div>
+            <div class="form-group">
+              <label>Profil ONVIF</label>
+              <input type="text" id="CAMERA2_ONVIF_PROFILE" value="{{ env.get('CAMERA2_ONVIF_PROFILE','Profile_1') }}">
+            </div>
+          </div>
+          <div style="margin-top:1rem;">
+            <button class="btn btn-secondary btn-sm" onclick="testConnectivity()">🔗 Testează conectivitate</button>
+            <span id="conn-result" style="margin-left:0.75rem;font-size:0.82rem;"></span>
           </div>
         </div>
       </div>
 
-      <div class="section-card">
-        <div class="section-title">Preseturi salvate</div>
-        <div id="presets-list" class="presets-list">
-          <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
+      <!-- ══════════ Tab: PTZ Preseturi ══════════ -->
+      <div class="tab-panel" id="tab-ptz">
+        <div class="section-card">
+          <div class="section-title">Previzualizare live — Camera 2</div>
+          <img id="stream-preview" src="/api/stream?camera=2&fps=8" alt="Stream Camera 2">
         </div>
-        <div style="display:flex;gap:0.75rem;margin-top:1rem;align-items:center;">
-          <input type="text" id="new-preset-name" placeholder="Nume preset nou" style="max-width:220px;">
-          <button class="btn btn-primary btn-sm" onclick="savePreset()">💾 Salvează poziția curentă</button>
+
+        <div class="section-card">
+          <div class="section-title">Control PTZ</div>
+          <div class="ptz-layout">
+            <div>
+              <div class="ptz-joystick">
+                <div></div>
+                <button class="ptz-btn" onmousedown="ptzMove('up')" onmouseup="ptzStop()" ontouchstart="ptzMove('up')"
+                  ontouchend="ptzStop()">▲</button>
+                <div></div>
+                <button class="ptz-btn" onmousedown="ptzMove('left')" onmouseup="ptzStop()"
+                  ontouchstart="ptzMove('left')" ontouchend="ptzStop()">◀</button>
+                <button class="ptz-btn center" onmousedown="ptzStop()">■</button>
+                <button class="ptz-btn" onmousedown="ptzMove('right')" onmouseup="ptzStop()"
+                  ontouchstart="ptzMove('right')" ontouchend="ptzStop()">▶</button>
+                <div></div>
+                <button class="ptz-btn" onmousedown="ptzMove('down')" onmouseup="ptzStop()"
+                  ontouchstart="ptzMove('down')" ontouchend="ptzStop()">▼</button>
+                <div></div>
+              </div>
+              <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+                <button class="btn btn-secondary btn-sm" onmousedown="ptzZoom('in')" onmouseup="ptzStop()">🔍+</button>
+                <button class="btn btn-secondary btn-sm" onmousedown="ptzZoom('out')" onmouseup="ptzStop()">🔍-</button>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:0.78rem;color:var(--muted);">Viteză PTZ</label>
+              <input type="range" min="1" max="7" value="3" id="ptz-speed" style="margin-top:0.4rem;">
+              <div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem;">Nivel <span
+                  id="ptz-speed-val">3</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Preseturi salvate</div>
+          <div id="presets-list" class="presets-list">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
+          </div>
+          <div style="display:flex;gap:0.75rem;margin-top:1rem;align-items:center;">
+            <input type="text" id="new-preset-name" placeholder="Nume preset nou" style="max-width:220px;">
+            <button class="btn btn-primary btn-sm" onclick="savePreset()">💾 Salvează poziția curentă</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ══════════ Tab: ALPR ══════════ -->
-    <div class="tab-panel" id="tab-alpr">
-      <div class="section-card">
-        <div class="section-title">Modele ALPR</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Model detector (YOLO)</label>
-            <input type="text" id="ALPR_DETECTOR_MODEL" value="{{ env.get('ALPR_DETECTOR_MODEL','yolo-v9-t-384-license-plate-end2end') }}">
+      <!-- ══════════ Tab: ALPR ══════════ -->
+      <div class="tab-panel" id="tab-alpr">
+        <div class="section-card">
+          <div class="section-title">Modele ALPR</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Model detector (YOLO)</label>
+              <input type="text" id="ALPR_DETECTOR_MODEL"
+                value="{{ env.get('ALPR_DETECTOR_MODEL','yolo-v9-t-384-license-plate-end2end') }}">
+            </div>
+            <div class="form-group">
+              <label>Model OCR</label>
+              <input type="text" id="ALPR_OCR_MODEL" value="{{ env.get('ALPR_OCR_MODEL','cct-xs-v2-global-model') }}">
+            </div>
+            <div class="form-group">
+              <label>Cameră ALPR</label>
+              <p style="margin:0;font-size:0.9rem;color:var(--muted);line-height:1.45">
+                Întotdeauna <strong>camera 2</strong> (față / PTZ) — nu se poate schimba.
+              </p>
+            </div>
+            <div class="form-group">
+              <label>ALPR activat</label>
+              <select id="ALPR_ENABLED">
+                <option value="1" {% if env.get('ALPR_ENABLED','1') !='0' %}selected{% endif %}>Da</option>
+                <option value="0" {% if env.get('ALPR_ENABLED','1')=='0' %}selected{% endif %}>Nu</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Model OCR</label>
-            <input type="text" id="ALPR_OCR_MODEL" value="{{ env.get('ALPR_OCR_MODEL','cct-xs-v2-global-model') }}">
+          <div class="form-group" style="margin-top:1rem;">
+            <label>Prag confidence YOLO: <span id="conf-val" style="color:var(--accent);">{{
+                env.get('ALPR_DETECTOR_CONF_THRESH','0.1') }}</span></label>
+            <div class="range-row">
+              <input type="range" id="ALPR_DETECTOR_CONF_THRESH" min="5" max="95" step="1"
+                value="{{ (env.get('ALPR_DETECTOR_CONF_THRESH','0.1')|float * 100)|int }}"
+                oninput="document.getElementById('conf-val').textContent=(this.value/100).toFixed(2)">
+              <span class="range-val" id="conf-val2">{{ env.get('ALPR_DETECTOR_CONF_THRESH','0.1') }}</span>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Cameră ALPR</label>
-            <p style="margin:0;font-size:0.9rem;color:var(--muted);line-height:1.45">
-              Întotdeauna <strong>camera 2</strong> (față / PTZ) — nu se poate schimba.
-            </p>
+          <div style="display:flex;gap:1.5rem;margin-top:0.75rem;">
+            <label class="toggle-row">
+              <input type="checkbox" id="ALPR_UPSCALE_RETRY" {% if env.get('ALPR_UPSCALE_RETRY','1')=='1' %}checked{%
+                endif %}>
+              Retry cu upscale dacă nu se detectează
+            </label>
           </div>
-          <div class="form-group">
-            <label>ALPR activat</label>
-            <select id="ALPR_ENABLED">
-              <option value="1" {% if env.get('ALPR_ENABLED','1') != '0' %}selected{% endif %}>Da</option>
-              <option value="0" {% if env.get('ALPR_ENABLED','1') == '0' %}selected{% endif %}>Nu</option>
+          <div class="form-group" style="max-width:240px;margin-top:0.75rem;">
+            <label>Factor upscale</label>
+            <input type="number" id="ALPR_PREDICT_UPSCALE" value="{{ env.get('ALPR_PREDICT_UPSCALE','1.5') }}" min="1.1"
+              max="2.5" step="0.1">
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Test ALPR acum</div>
+          <button class="btn btn-primary" onclick="testAlpr()">📸 Capturează și detectează</button>
+          <div id="alpr-result" class="alpr-result" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ══════════ Tab: Înregistrare ══════════ -->
+      <div class="tab-panel" id="tab-inregistrare">
+        <div class="section-card">
+          <div class="section-title">Setări înregistrare</div>
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label>Durată înregistrare: <span id="dur-val" style="color:var(--accent);">{{
+                env.get('RECORDING_DURATION_SECONDS','60') }}s</span></label>
+            <div class="range-row">
+              <input type="range" id="RECORDING_DURATION_SECONDS" min="5" max="600" step="5"
+                value="{{ env.get('RECORDING_DURATION_SECONDS','60') }}"
+                oninput="document.getElementById('dur-val').textContent=this.value+'s'">
+              <span class="range-val">{{ env.get('RECORDING_DURATION_SECONDS','60') }}s</span>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Countdown ESP (secunde, opțional)</label>
+              <input type="number" id="ESP_COUNTDOWN_SECONDS" value="{{ env.get('ESP_COUNTDOWN_SECONDS','') }}"
+                placeholder="Implicit = durată înregistrare">
+            </div>
+            <div class="form-group">
+              <label>Calitate stream înregistrare</label>
+              <select id="WORKFLOW_RECORD_STREAM">
+                <option value="main" {% if env.get('WORKFLOW_RECORD_STREAM','main')=='main' %}selected{% endif %}>Main
+                  (HD)</option>
+                <option value="sub" {% if env.get('WORKFLOW_RECORD_STREAM','main')=='sub' %}selected{% endif %}>Sub (SD)
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>IP dispozitiv ESP (opțional)</label>
+              <input type="text" id="ESP_DEVICE_IP" value="{{ env.get('ESP_DEVICE_IP','') }}"
+                placeholder="192.168.1.50">
+            </div>
+            <div class="form-group">
+              <label>Notă ESP (afișată în /help-esp1)</label>
+              <input type="text" id="ESP_HELP_NOTE" value="{{ env.get('ESP_HELP_NOTE','') }}"
+                placeholder="Ex: ESP birou / locație 1">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ Tab: Portal & SMS ══════════ -->
+      <div class="tab-panel" id="tab-portal">
+        <div class="section-card">
+          <div class="section-title">Portal client</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>URL public (baza linkurilor SMS)</label>
+              <input type="text" id="PUBLIC_BASE_URL" value="{{ env.get('PUBLIC_BASE_URL','http://localhost:8000') }}">
+            </div>
+            <div class="form-group">
+              <label>Prefix cale portal</label>
+              <input type="text" id="PORTAL_PATH_PREFIX" value="{{ env.get('PORTAL_PATH_PREFIX','/verificare') }}">
+            </div>
+            <div class="form-group">
+              <label>TTL linkuri (zile)</label>
+              <input type="number" id="CUSTOMER_LINK_TTL_DAYS" value="{{ env.get('CUSTOMER_LINK_TTL_DAYS','30') }}"
+                min="1">
+            </div>
+            <div class="form-group">
+              <label>Nume brand portal</label>
+              <input type="text" id="PORTAL_BRAND_NAME" value="{{ env.get('PORTAL_BRAND_NAME','TEDDE AUTO') }}">
+            </div>
+            <div class="form-group">
+              <label>Telefon footer</label>
+              <input type="text" id="PORTAL_FOOTER_PHONE" value="{{ env.get('PORTAL_FOOTER_PHONE','') }}">
+            </div>
+            <div class="form-group">
+              <label>Email footer</label>
+              <input type="text" id="PORTAL_FOOTER_EMAIL" value="{{ env.get('PORTAL_FOOTER_EMAIL','') }}">
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">SMS Backend</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Backend SMS</label>
+              <select id="SMS_BACKEND">
+                <option value="mock" {% if env.get('SMS_BACKEND','mock')=='mock' %}selected{% endif %}>Mock (logare
+                  only)</option>
+                <option value="custom_http" {% if env.get('SMS_BACKEND','mock')=='custom_http' %}selected{% endif %}>
+                  Custom HTTP</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>URL endpoint SMS</label>
+              <input type="text" id="SMS_HTTP_URL" value="{{ env.get('SMS_HTTP_URL','') }}" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>Metodă HTTP</label>
+              <select id="SMS_HTTP_METHOD">
+                <option {% if env.get('SMS_HTTP_METHOD','POST')=='POST' %}selected{% endif %}>POST</option>
+                <option {% if env.get('SMS_HTTP_METHOD','POST')=='PUT' %}selected{% endif %}>PUT</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:0.75rem;">
+            <label>Template body (folosiți {{to}} și {{message}})</label>
+            <textarea id="SMS_HTTP_BODY_TEMPLATE" rows="4">{{ env.get('SMS_HTTP_BODY_TEMPLATE','') }}</textarea>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">SMS Gateway simplu (apiKey + phone + message)
+            <a href="/sms-test" target="_blank" class="btn btn-secondary btn-sm"
+              style="margin-left:0.5rem;text-decoration:none;">🧪 Pagină test →</a>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>SMS_GATEWAY_URL</label>
+              <input type="text" id="SMS_GATEWAY_URL" value="{{ env.get('SMS_GATEWAY_URL','') }}"
+                placeholder="http://100.113.168.44:8080">
+            </div>
+            <div class="form-group">
+              <label>SMS_GATEWAY_API_KEY</label>
+              <input type="password" id="SMS_GATEWAY_API_KEY" value="{{ env.get('SMS_GATEWAY_API_KEY','') }}"
+                placeholder="••••••••">
+            </div>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem;">
+            POST <code>{URL}/send-sms</code> cu <code>{apiKey, phone, message}</code>. API key-ul rămâne pe server (nu e
+            expus în browser).
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ Tab: ESP / Box ══════════ -->
+      <div class="tab-panel" id="tab-esp">
+        <div class="section-card">
+          <div class="section-title">Reach ESP <span id="esp-reach-pill"></span></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>IP ESP (din .env)</label>
+              <input type="text" id="ESP_DEVICE_IP_ESP" value="{{ env.get('ESP_DEVICE_IP','') }}"
+                placeholder="192.168.1.50">
+            </div>
+          </div>
+          <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="reachEsp()">📡 Testează reach (TCP + HTTP)</button>
+            <button class="btn btn-secondary btn-sm" onclick="discoverEsp()">🔎 Auto-discover în rețea</button>
+            <button class="btn btn-secondary btn-sm" onclick="saveEspIpOnly()">💾 Salvează doar ESP_DEVICE_IP</button>
+          </div>
+          <div id="esp-reach-result" style="font-size:0.82rem;margin-top:0.5rem;color:var(--muted);"></div>
+          <div id="esp-discover-result" style="margin-top:0.75rem;"></div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Heartbeat ESP Box (raportat de ESP)</div>
+          <div id="esp-status-content">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă statusul ESP...</div>
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:0.75rem;">
+            <button class="btn btn-secondary btn-sm" onclick="loadEspStatus()">🔄 Reîmprospătează</button>
+            <span id="esp-ping-result" style="font-size:0.82rem;color:var(--muted);"></span>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">Configurare ESP (din server)</div>
+          <div id="esp-config-display" style="font-size:0.85rem;color:var(--muted);">Se încarcă...</div>
+        </div>
+      </div>
+
+      <!-- ══════════ Tab: Video Galerie ══════════ -->
+      <div class="tab-panel" id="tab-galerie">
+        <div class="section-card">
+          <div class="section-title">Filtre
+            <span id="gallery-count"
+              style="text-transform:none;font-weight:500;color:var(--muted);letter-spacing:0;margin-left:0.5rem;"></span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;">
+            <select id="gallery-source" class="btn btn-secondary btn-sm" style="padding:0.4rem 0.6rem;">
+              <option value="all">Toate sursele</option>
+              <option value="event">Evenimente (workflow ESP)</option>
+              <option value="manual">Înregistrări manuale</option>
             </select>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:1rem;">
-          <label>Prag confidence YOLO: <span id="conf-val" style="color:var(--accent);">{{ env.get('ALPR_DETECTOR_CONF_THRESH','0.1') }}</span></label>
-          <div class="range-row">
-            <input type="range" id="ALPR_DETECTOR_CONF_THRESH" min="5" max="95" step="1"
-              value="{{ (env.get('ALPR_DETECTOR_CONF_THRESH','0.1')|float * 100)|int }}"
-              oninput="document.getElementById('conf-val').textContent=(this.value/100).toFixed(2)">
-            <span class="range-val" id="conf-val2">{{ env.get('ALPR_DETECTOR_CONF_THRESH','0.1') }}</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:1.5rem;margin-top:0.75rem;">
-          <label class="toggle-row">
-            <input type="checkbox" id="ALPR_UPSCALE_RETRY" {% if env.get('ALPR_UPSCALE_RETRY','1') == '1' %}checked{% endif %}>
-            Retry cu upscale dacă nu se detectează
-          </label>
-        </div>
-        <div class="form-group" style="max-width:240px;margin-top:0.75rem;">
-          <label>Factor upscale</label>
-          <input type="number" id="ALPR_PREDICT_UPSCALE" value="{{ env.get('ALPR_PREDICT_UPSCALE','1.5') }}" min="1.1" max="2.5" step="0.1">
-        </div>
-      </div>
-
-      <div class="section-card">
-        <div class="section-title">Test ALPR acum</div>
-        <button class="btn btn-primary" onclick="testAlpr()">📸 Capturează și detectează</button>
-        <div id="alpr-result" class="alpr-result" style="display:none;"></div>
-      </div>
-    </div>
-
-    <!-- ══════════ Tab: Înregistrare ══════════ -->
-    <div class="tab-panel" id="tab-inregistrare">
-      <div class="section-card">
-        <div class="section-title">Setări înregistrare</div>
-        <div class="form-group" style="margin-bottom:1rem;">
-          <label>Durată înregistrare: <span id="dur-val" style="color:var(--accent);">{{ env.get('RECORDING_DURATION_SECONDS','60') }}s</span></label>
-          <div class="range-row">
-            <input type="range" id="RECORDING_DURATION_SECONDS" min="5" max="600" step="5"
-              value="{{ env.get('RECORDING_DURATION_SECONDS','60') }}"
-              oninput="document.getElementById('dur-val').textContent=this.value+'s'">
-            <span class="range-val">{{ env.get('RECORDING_DURATION_SECONDS','60') }}s</span>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Countdown ESP (secunde, opțional)</label>
-            <input type="number" id="ESP_COUNTDOWN_SECONDS" value="{{ env.get('ESP_COUNTDOWN_SECONDS','') }}" placeholder="Implicit = durată înregistrare">
-          </div>
-          <div class="form-group">
-            <label>Calitate stream înregistrare</label>
-            <select id="WORKFLOW_RECORD_STREAM">
-              <option value="main" {% if env.get('WORKFLOW_RECORD_STREAM','main') == 'main' %}selected{% endif %}>Main (HD)</option>
-              <option value="sub" {% if env.get('WORKFLOW_RECORD_STREAM','main') == 'sub' %}selected{% endif %}>Sub (SD)</option>
+            <select id="gallery-camera" class="btn btn-secondary btn-sm" style="padding:0.4rem 0.6rem;">
+              <option value="all">Ambele camere</option>
+              <option value="1">Camera 1 (fixă)</option>
+              <option value="2">Camera 2 (PTZ)</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label>IP dispozitiv ESP (opțional)</label>
-            <input type="text" id="ESP_DEVICE_IP" value="{{ env.get('ESP_DEVICE_IP','') }}" placeholder="192.168.1.50">
-          </div>
-          <div class="form-group">
-            <label>Notă ESP (afișată în /help-esp1)</label>
-            <input type="text" id="ESP_HELP_NOTE" value="{{ env.get('ESP_HELP_NOTE','') }}" placeholder="Ex: ESP birou / locație 1">
+            <input type="search" id="gallery-search" class="btn btn-secondary btn-sm"
+              style="padding:0.4rem 0.6rem;flex:1;min-width:180px;"
+              placeholder="Caută după dată, plăcuță, nume fișier...">
+            <button class="btn btn-secondary btn-sm" onclick="loadGallery()">🔄 Reîmprospătează</button>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- ══════════ Tab: Portal & SMS ══════════ -->
-    <div class="tab-panel" id="tab-portal">
-      <div class="section-card">
-        <div class="section-title">Portal client</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>URL public (baza linkurilor SMS)</label>
-            <input type="text" id="PUBLIC_BASE_URL" value="{{ env.get('PUBLIC_BASE_URL','http://localhost:8000') }}">
+        <div class="section-card">
+          <div class="section-title">📦 Evenimente workflow (ambele camere + ALPR)</div>
+          <div id="gallery-events" style="display:grid;gap:1rem;">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
           </div>
-          <div class="form-group">
-            <label>Prefix cale portal</label>
-            <input type="text" id="PORTAL_PATH_PREFIX" value="{{ env.get('PORTAL_PATH_PREFIX','/verificare') }}">
-          </div>
-          <div class="form-group">
-            <label>TTL linkuri (zile)</label>
-            <input type="number" id="CUSTOMER_LINK_TTL_DAYS" value="{{ env.get('CUSTOMER_LINK_TTL_DAYS','30') }}" min="1">
-          </div>
-          <div class="form-group">
-            <label>Nume brand portal</label>
-            <input type="text" id="PORTAL_BRAND_NAME" value="{{ env.get('PORTAL_BRAND_NAME','TEDDE AUTO') }}">
-          </div>
-          <div class="form-group">
-            <label>Telefon footer</label>
-            <input type="text" id="PORTAL_FOOTER_PHONE" value="{{ env.get('PORTAL_FOOTER_PHONE','') }}">
-          </div>
-          <div class="form-group">
-            <label>Email footer</label>
-            <input type="text" id="PORTAL_FOOTER_EMAIL" value="{{ env.get('PORTAL_FOOTER_EMAIL','') }}">
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">🎥 Înregistrări manuale</div>
+          <div id="gallery-manual"
+            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+            <div style="color:var(--muted);font-size:0.85rem;">Se încarcă...</div>
           </div>
         </div>
       </div>
 
-      <div class="section-card">
-        <div class="section-title">SMS Backend</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Backend SMS</label>
-            <select id="SMS_BACKEND">
-              <option value="mock" {% if env.get('SMS_BACKEND','mock') == 'mock' %}selected{% endif %}>Mock (logare only)</option>
-              <option value="custom_http" {% if env.get('SMS_BACKEND','mock') == 'custom_http' %}selected{% endif %}>Custom HTTP</option>
-            </select>
+      <!-- ══════════ Tab: Rețea Scanner ══════════ -->
+      <div class="tab-panel" id="tab-retea">
+        <div class="section-card">
+          <div class="section-title">Scanner rețea locală</div>
+          <div id="net-info" style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;">Se încarcă info
+            rețea...</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Subnet /24</label>
+              <input type="text" id="scan-subnet" placeholder="auto-detectare">
+            </div>
+            <div class="form-group">
+              <label>Port de probat</label>
+              <input type="number" id="scan-port" value="80" min="1" max="65535">
+            </div>
+            <div class="form-group">
+              <label>Timeout (sec)</label>
+              <input type="number" id="scan-timeout" value="0.4" min="0.1" max="3" step="0.1">
+            </div>
           </div>
-          <div class="form-group">
-            <label>URL endpoint SMS</label>
-            <input type="text" id="SMS_HTTP_URL" value="{{ env.get('SMS_HTTP_URL','') }}" placeholder="https://...">
+          <div style="margin-top:0.75rem;display:flex;gap:0.5rem;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="scan-btn" onclick="runScan()">🔎 Scanează (254 IP-uri)</button>
+            <span id="scan-info" style="font-size:0.82rem;color:var(--muted);"></span>
           </div>
-          <div class="form-group">
-            <label>Metodă HTTP</label>
-            <select id="SMS_HTTP_METHOD">
-              <option {% if env.get('SMS_HTTP_METHOD','POST') == 'POST' %}selected{% endif %}>POST</option>
-              <option {% if env.get('SMS_HTTP_METHOD','POST') == 'PUT' %}selected{% endif %}>PUT</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group" style="margin-top:0.75rem;">
-          <label>Template body (folosiți {{to}} și {{message}})</label>
-          <textarea id="SMS_HTTP_BODY_TEMPLATE" rows="4">{{ env.get('SMS_HTTP_BODY_TEMPLATE','') }}</textarea>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══════════ Tab: ESP / Box ══════════ -->
-    <div class="tab-panel" id="tab-esp">
-      <div class="section-card">
-        <div class="section-title">Status ESP Box</div>
-        <div id="esp-status-content">
-          <div style="color:var(--muted);font-size:0.85rem;">Se încarcă statusul ESP...</div>
-        </div>
-        <div style="margin-top:1rem;display:flex;gap:0.75rem;">
-          <button class="btn btn-secondary btn-sm" onclick="loadEspStatus()">🔄 Reîmprospătează</button>
-          <button class="btn btn-secondary btn-sm" onclick="pingEsp()">📡 Ping ESP</button>
-          <span id="esp-ping-result" style="font-size:0.82rem;color:var(--muted);"></span>
+          <div id="scan-results"></div>
         </div>
       </div>
 
-      <div class="section-card">
-        <div class="section-title">Configurare ESP (din server)</div>
-        <div id="esp-config-display" style="font-size:0.85rem;color:var(--muted);">Se încarcă...</div>
-      </div>
-    </div>
+    </div><!-- /main-content -->
+  </div><!-- /layout -->
 
-  </div><!-- /main-content -->
-</div><!-- /layout -->
+  <!-- Sticky save bar -->
+  <div class="save-bar">
+    <button class="btn btn-primary" onclick="saveConfig()">💾 Salvează Configurația</button>
+    <span id="save-status" class="save-status"></span>
+    <span style="flex:1;"></span>
+    <span style="font-size:0.78rem;color:var(--muted);">Unele setări necesită repornirea serverului.</span>
+  </div>
 
-<!-- Sticky save bar -->
-<div class="save-bar">
-  <button class="btn btn-primary" onclick="saveConfig()">💾 Salvează Configurația</button>
-  <span id="save-status" class="save-status"></span>
-  <span style="flex:1;"></span>
-  <span style="font-size:0.78rem;color:var(--muted);">Unele setări necesită repornirea serverului.</span>
-</div>
+  <script>
+    // ── Tab switching ──────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
 
-<script>
-// ── Tab switching ──────────────────────────────────────
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-' + tab).classList.add('active');
+        if (tab === 'ptz') loadPresets();
+        if (tab === 'esp') { loadEspStatus(); loadEspConfig(); reachEsp(); }
+        if (tab === 'sistem') loadSysInfo();
+        if (tab === 'retea') loadNetInfo();
+        if (tab === 'camere') refreshCameraHealth();
+        if (tab === 'galerie') loadGallery();
+      });
+    });
 
-    if (tab === 'ptz') loadPresets();
-    if (tab === 'esp') { loadEspStatus(); loadEspConfig(); }
-  });
-});
-
-// ── PTZ speed slider ──────────────────────────────────
-document.getElementById('ptz-speed').addEventListener('input', e => {
-  document.getElementById('ptz-speed-val').textContent = e.target.value;
-});
-
-// ── Conf slider sync ──────────────────────────────────
-document.getElementById('ALPR_DETECTOR_CONF_THRESH').addEventListener('input', e => {
-  const v = (e.target.value / 100).toFixed(2);
-  document.getElementById('conf-val').textContent = v;
-  document.getElementById('conf-val2').textContent = v;
-});
-
-// ── Connectivity test ─────────────────────────────────
-async function testConnectivity() {
-  const el = document.getElementById('conn-result');
-  el.textContent = 'Testare...';
-  try {
-    const r = await fetch('/api/status');
-    const data = await r.json();
-    const c1 = data.camera1?.reachable;
-    const c2 = data.camera2?.reachable;
-    el.innerHTML = `Cam1: ${c1 ? '<b style="color:var(--success)">✓</b>' : '<b style="color:var(--danger)">✗</b>'}  Cam2: ${c2 ? '<b style="color:var(--success)">✓</b>' : '<b style="color:var(--danger)">✗</b>'}`;
-  } catch (e) {
-    el.textContent = 'Eroare: ' + e.message;
-  }
-}
-
-// ── PTZ controls ──────────────────────────────────────
-async function ptzMove(dir) {
-  const speed = parseInt(document.getElementById('ptz-speed').value);
-  await fetch('/api/ptz/move', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({direction: dir, speed: speed})
-  });
-}
-async function ptzStop() {
-  await fetch('/api/ptz/stop', {method: 'POST'});
-}
-async function ptzZoom(dir) {
-  await fetch('/api/ptz/zoom', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({direction: dir})
-  });
-}
-
-// ── Load presets ────────────────────────────────���─────
-async function loadPresets() {
-  try {
-    const r = await fetch('/api/ptz/presets');
-    const data = await r.json();
-    const list = document.getElementById('presets-list');
-    const presets = data.presets || [];
-    if (!presets.length) {
-      list.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Niciun preset salvat.</div>';
-      return;
+    function switchTab(tab) {
+      const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+      if (btn) btn.click();
     }
-    list.innerHTML = presets.map(p => `
+
+    // ── PTZ speed slider ──────────────────────────────────
+    document.getElementById('ptz-speed').addEventListener('input', e => {
+      document.getElementById('ptz-speed-val').textContent = e.target.value;
+    });
+
+    // ── Conf slider sync ──────────────────────────────────
+    document.getElementById('ALPR_DETECTOR_CONF_THRESH').addEventListener('input', e => {
+      const v = (e.target.value / 100).toFixed(2);
+      document.getElementById('conf-val').textContent = v;
+      document.getElementById('conf-val2').textContent = v;
+    });
+
+    // ── Connectivity test ─────────────────────────────────
+    async function testConnectivity() {
+      const el = document.getElementById('conn-result');
+      el.textContent = 'Testare...';
+      try {
+        const r = await fetch('/api/status');
+        const data = await r.json();
+        const c1 = data.camera1?.reachable;
+        const c2 = data.camera2?.reachable;
+        el.innerHTML = `Cam1: ${c1 ? '<b style="color:var(--success)">✓</b>' : '<b style="color:var(--danger)">✗</b>'}  Cam2: ${c2 ? '<b style="color:var(--success)">✓</b>' : '<b style="color:var(--danger)">✗</b>'}`;
+      } catch (e) {
+        el.textContent = 'Eroare: ' + e.message;
+      }
+    }
+
+    // ── PTZ controls ──────────────────────────────────────
+    async function ptzMove(dir) {
+      const speed = parseInt(document.getElementById('ptz-speed').value);
+      await fetch('/api/ptz/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction: dir, speed: speed })
+      });
+    }
+    async function ptzStop() {
+      await fetch('/api/ptz/stop', { method: 'POST' });
+    }
+    async function ptzZoom(dir) {
+      await fetch('/api/ptz/zoom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ direction: dir })
+      });
+    }
+
+    // ── Load presets ────────────────────────────────���─────
+    async function loadPresets() {
+      try {
+        const r = await fetch('/api/ptz/presets');
+        const data = await r.json();
+        const list = document.getElementById('presets-list');
+        const presets = data.presets || [];
+        if (!presets.length) {
+          list.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Niciun preset salvat.</div>';
+          return;
+        }
+        list.innerHTML = presets.map(p => `
       <div class="preset-item">
         <span class="preset-token">${p.token}</span>
         <span style="flex:1;">${p.name || p.token}</span>
@@ -672,76 +1145,76 @@ async function loadPresets() {
         <button class="btn btn-sm" style="background:var(--danger);color:#fff;" onclick="deletePreset('${p.token}')">✕</button>
       </div>
     `).join('');
-  } catch(e) { console.error('loadPresets:', e); }
-}
+      } catch (e) { console.error('loadPresets:', e); }
+    }
 
-async function gotoPreset(token) {
-  await fetch('/api/ptz/goto', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({token})
-  });
-}
+    async function gotoPreset(token) {
+      await fetch('/api/ptz/goto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      });
+    }
 
-async function savePreset() {
-  const name = document.getElementById('new-preset-name').value.trim();
-  if (!name) { alert('Introduceți un nume pentru preset'); return; }
-  try {
-    const r = await fetch('/api/ptz/presets', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name})
-    });
-    if (r.ok) {
-      document.getElementById('new-preset-name').value = '';
+    async function savePreset() {
+      const name = document.getElementById('new-preset-name').value.trim();
+      if (!name) { alert('Introduceți un nume pentru preset'); return; }
+      try {
+        const r = await fetch('/api/ptz/presets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        if (r.ok) {
+          document.getElementById('new-preset-name').value = '';
+          await loadPresets();
+        }
+      } catch (e) { alert('Eroare la salvare preset: ' + e.message); }
+    }
+
+    async function deletePreset(token) {
+      if (!confirm('Ștergi presetul ' + token + '?')) return;
+      await fetch('/api/ptz/presets/' + token, { method: 'DELETE' });
       await loadPresets();
     }
-  } catch(e) { alert('Eroare la salvare preset: ' + e.message); }
-}
 
-async function deletePreset(token) {
-  if (!confirm('Ștergi presetul ' + token + '?')) return;
-  await fetch('/api/ptz/presets/' + token, {method: 'DELETE'});
-  await loadPresets();
-}
-
-// ── ALPR test ─────────────────────────────────────────
-async function testAlpr() {
-  const resultEl = document.getElementById('alpr-result');
-  resultEl.style.display = 'block';
-  resultEl.innerHTML = '<span style="color:var(--muted)">Se capturează și detectează...</span>';
-  try {
-    const r = await fetch('/api/alpr/test', {method: 'POST'});
-    const data = await r.json();
-    if (data.error) {
-      resultEl.innerHTML = `<span style="color:var(--danger)">Eroare: ${data.error}</span>`;
-      return;
-    }
-    const plate = data.selected_plate || 'NECUNOSCUT';
-    const conf = data.selected_confidence ? `${data.selected_confidence.toFixed(1)}%` : '—';
-    const snapshotUrl = data.snapshot_url || '';
-    resultEl.innerHTML = `
+    // ── ALPR test ─────────────────────────────────────────
+    async function testAlpr() {
+      const resultEl = document.getElementById('alpr-result');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '<span style="color:var(--muted)">Se capturează și detectează...</span>';
+      try {
+        const r = await fetch('/api/alpr/test', { method: 'POST' });
+        const data = await r.json();
+        if (data.error) {
+          resultEl.innerHTML = `<span style="color:var(--danger)">Eroare: ${data.error}</span>`;
+          return;
+        }
+        const plate = data.selected_plate || 'NECUNOSCUT';
+        const conf = data.selected_confidence ? `${data.selected_confidence.toFixed(1)}%` : '—';
+        const snapshotUrl = data.snapshot_url || '';
+        resultEl.innerHTML = `
       <div class="alpr-plate">${plate}</div>
       <div style="color:var(--muted);margin-top:0.25rem;font-size:0.82rem;">Confidence: ${conf}</div>
       ${snapshotUrl ? `<img class="alpr-snapshot" src="${snapshotUrl}" alt="snapshot">` : ''}
     `;
-  } catch(e) {
-    resultEl.innerHTML = `<span style="color:var(--danger)">Eroare: ${e.message}</span>`;
-  }
-}
-
-// ── ESP status ────────────────────────────────────────
-async function loadEspStatus() {
-  const el = document.getElementById('esp-status-content');
-  try {
-    const r = await fetch('/api/esp/heartbeat');
-    if (!r.ok) {
-      el.innerHTML = '<span style="color:var(--muted)">Niciun heartbeat primit încă de la ESP.</span>';
-      return;
+      } catch (e) {
+        resultEl.innerHTML = `<span style="color:var(--danger)">Eroare: ${e.message}</span>`;
+      }
     }
-    const d = await r.json();
-    const age = d.age_seconds !== undefined ? `${d.age_seconds}s ago` : '';
-    el.innerHTML = `
+
+    // ── ESP status ────────────────────────────────────────
+    async function loadEspStatus() {
+      const el = document.getElementById('esp-status-content');
+      try {
+        const r = await fetch('/api/esp/heartbeat');
+        if (!r.ok) {
+          el.innerHTML = '<span style="color:var(--muted)">Niciun heartbeat primit încă de la ESP.</span>';
+          return;
+        }
+        const d = await r.json();
+        const age = d.age_seconds !== undefined ? `${d.age_seconds}s ago` : '';
+        el.innerHTML = `
       <div class="esp-status-grid">
         <div class="esp-stat">
           <div class="esp-stat-label">Stare</div>
@@ -767,99 +1240,571 @@ async function loadEspStatus() {
           <div class="esp-stat-label">Ultima actualizare</div>
           <div class="esp-stat-value" style="font-size:0.82rem;">${age}</div>
         </div>
+        ${d.source_ip ? `
+        <div class="esp-stat">
+          <div class="esp-stat-label">IP ESP (detectat)</div>
+          <div class="esp-stat-value" style="font-size:0.9rem;font-family:monospace;">${d.source_ip}
+            <button class="btn btn-secondary btn-sm" style="margin-left:0.3rem;padding:0.15rem 0.5rem;font-size:0.7rem;" onclick="adoptEspIp('${d.source_ip}')">Adoptă</button>
+          </div>
+        </div>` : ''}
+        ${d.fw ? `
+        <div class="esp-stat">
+          <div class="esp-stat-label">Firmware</div>
+          <div class="esp-stat-value" style="font-size:0.82rem;">${d.fw}</div>
+        </div>` : ''}
+        ${d.uptime_s !== undefined ? `
+        <div class="esp-stat">
+          <div class="esp-stat-label">Uptime ESP</div>
+          <div class="esp-stat-value" style="font-size:0.9rem;">${Math.floor(d.uptime_s / 3600)}h ${Math.floor((d.uptime_s % 3600) / 60)}m</div>
+        </div>` : ''}
+        ${d.rssi !== undefined ? `
+        <div class="esp-stat">
+          <div class="esp-stat-label">Semnal WiFi (RSSI)</div>
+          <div class="esp-stat-value" style="color:${d.rssi > -70 ? 'var(--success)' : d.rssi > -85 ? 'var(--warning)' : 'var(--danger)'};font-size:0.9rem;">${d.rssi} dBm</div>
+        </div>` : ''}
       </div>
     `;
-  } catch(e) {
-    el.innerHTML = '<span style="color:var(--danger)">Eroare la citire heartbeat.</span>';
-  }
-}
-
-async function loadEspConfig() {
-  const el = document.getElementById('esp-config-display');
-  try {
-    const r = await fetch('/api/esp/config');
-    const d = await r.json();
-    el.innerHTML = `Countdown: <b>${d.countdown_seconds}s</b> | Durată înregistrare: <b>${d.recording_duration_seconds}s</b>`;
-  } catch(e) { el.textContent = 'Eroare la citire config ESP.'; }
-}
-
-async function pingEsp() {
-  const el = document.getElementById('esp-ping-result');
-  el.textContent = 'Se testează...';
-  try {
-    const r = await fetch('/api/esp/heartbeat');
-    if (r.ok) {
-      const d = await r.json();
-      el.textContent = `✓ ESP activ (${d.age_seconds !== undefined ? d.age_seconds + 's ago' : 'date disponibile'})`;
-      el.style.color = 'var(--success)';
-    } else {
-      el.textContent = '✗ ESP nereachabil sau niciun heartbeat';
-      el.style.color = 'var(--danger)';
+      } catch (e) {
+        el.innerHTML = '<span style="color:var(--danger)">Eroare la citire heartbeat.</span>';
+      }
     }
-  } catch(e) {
-    el.textContent = '✗ Eroare: ' + e.message;
-    el.style.color = 'var(--danger)';
-  }
-}
 
-// ── Collect all inputs into a config object ───────────
-function collectConfig() {
-  const ids = [
-    'CAMERA_IP','CAMERA_RTSP_PORT','CAMERA_USERNAME','CAMERA_PASSWORD',
-    'RTSP_MAIN_PATH','RTSP_SUB_PATH',
-    'CAMERA2_IP','CAMERA2_RTSP_PORT','CAMERA2_HTTP_PORT','CAMERA2_SDK_PORT',
-    'CAMERA2_USERNAME','CAMERA2_PASSWORD','CAMERA2_ONVIF_PROFILE',
-    'ALPR_DETECTOR_MODEL','ALPR_OCR_MODEL','ALPR_ENABLED',
-    'ALPR_UPSCALE_RETRY','ALPR_PREDICT_UPSCALE',
-    'RECORDING_DURATION_SECONDS','ESP_COUNTDOWN_SECONDS',
-    'WORKFLOW_RECORD_STREAM','ESP_DEVICE_IP','ESP_HELP_NOTE',
-    'PUBLIC_BASE_URL','PORTAL_PATH_PREFIX','CUSTOMER_LINK_TTL_DAYS',
-    'PORTAL_BRAND_NAME','PORTAL_FOOTER_PHONE','PORTAL_FOOTER_EMAIL',
-    'SMS_BACKEND','SMS_HTTP_URL','SMS_HTTP_METHOD','SMS_HTTP_BODY_TEMPLATE',
-  ];
-
-  const config = {};
-  for (const id of ids) {
-    const el = document.getElementById(id);
-    if (!el) continue;
-    if (el.type === 'checkbox') {
-      config[id] = el.checked ? '1' : '0';
-    } else if (el.type === 'range' && id === 'ALPR_DETECTOR_CONF_THRESH') {
-      config[id] = (el.value / 100).toFixed(2);
-    } else {
-      const v = el.value.trim();
-      if (v !== '') config[id] = v;  // skip empty (don't overwrite with blank)
+    async function loadEspConfig() {
+      const el = document.getElementById('esp-config-display');
+      try {
+        const r = await fetch('/api/esp/config');
+        const d = await r.json();
+        el.innerHTML = `Countdown: <b>${d.countdown_seconds}s</b> | Durată înregistrare: <b>${d.recording_duration_seconds}s</b>`;
+      } catch (e) { el.textContent = 'Eroare la citire config ESP.'; }
     }
-  }
-  return config;
-}
 
-// ── Save config ───────────────────────────────────────
-async function saveConfig() {
-  const statusEl = document.getElementById('save-status');
-  statusEl.className = 'save-status';
-  statusEl.textContent = 'Salvare...';
+    // ── ESP reach (direct TCP/HTTP from server) ──────────
+    async function reachEsp() {
+      const ip = (document.getElementById('ESP_DEVICE_IP_ESP')?.value || document.getElementById('ESP_DEVICE_IP')?.value || '').trim();
+      const pill = document.getElementById('esp-reach-pill');
+      const res = document.getElementById('esp-reach-result');
+      if (!ip) {
+        if (pill) pill.innerHTML = '<span class="pill pill-warn">FĂRĂ IP</span>';
+        if (res) res.innerHTML = 'Setează <b>ESP_DEVICE_IP</b> (în tab-ul Rețea Scanner poți căuta automat).';
+        return;
+      }
+      if (pill) pill.innerHTML = '<span class="pill" style="background:#2d2d4e;color:var(--muted)">verific...</span>';
+      res.textContent = 'Testare TCP+HTTP pe ' + ip + ':80...';
+      try {
+        const [reachR, httpR] = await Promise.all([
+          fetch('/api/net/reach?host=' + encodeURIComponent(ip) + '&port=80&timeout=1.5').then(r => r.json()),
+          fetch('/api/net/http-probe?host=' + encodeURIComponent(ip) + '&port=80').then(r => r.json()),
+        ]);
+        const tcp = reachR.reachable;
+        const http = httpR.ok && httpR.status;
+        if (tcp) {
+          pill.innerHTML = '<span class="pill pill-ok">ONLINE</span>';
+          res.innerHTML = `TCP ✓ (${reachR.latency_ms}ms)` +
+            (http ? ` · HTTP ${httpR.status} · <b>${httpR.title || httpR.server || httpR.kind || '?'}</b>` : ' · HTTP nu răspunde');
+        } else {
+          pill.innerHTML = '<span class="pill pill-err">OFFLINE</span>';
+          res.textContent = `TCP ✗ nu răspunde pe ${ip}:80 (${reachR.latency_ms}ms timeout)`;
+        }
+      } catch (e) {
+        pill.innerHTML = '<span class="pill pill-err">EROARE</span>';
+        res.textContent = 'Eroare: ' + e.message;
+      }
+    }
 
-  const config = collectConfig();
-  try {
-    const r = await fetch('/api/config/save', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(config)
+    // ── ESP auto-discover: check heartbeat source_ip first, then /24 scan ──
+    async function discoverEsp() {
+      const res = document.getElementById('esp-discover-result');
+      res.innerHTML = '<span style="color:var(--muted)">Se verifică heartbeat-ul...</span>';
+
+      // Step 1: known IP from last heartbeat (instant, zero-config)
+      let knownIp = null, knownAge = null;
+      try {
+        const hr = await fetch('/api/esp/heartbeat');
+        if (hr.ok) {
+          const hb = await hr.json();
+          knownIp = hb.source_ip || null;
+          knownAge = hb.age_seconds;
+        }
+      } catch (e) { /* ignore */ }
+
+      let html = '';
+      if (knownIp) {
+        const fresh = knownAge != null && knownAge < 60;
+        html += `
+          <div class="preset-item" style="margin-bottom:0.5rem;background:rgba(34,197,94,0.08);border-color:var(--success);">
+            <span class="scan-kind esp">ESP LIVE</span>
+            <span style="font-family:monospace;font-weight:700;">${knownIp}</span>
+            <span style="flex:1;font-size:0.78rem;color:${fresh ? 'var(--success)' : 'var(--warning)'};">
+              ${fresh ? '✓' : '⚠'} heartbeat ${knownAge != null ? knownAge + 's ago' : 'unknown'}
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="adoptEspIp('${knownIp}')">Adoptă</button>
+          </div>`;
+      } else {
+        html += '<div style="color:var(--warning);font-size:0.82rem;margin-bottom:0.5rem;">Niciun heartbeat primit încă de la ESP. Scanez rețeaua ca fallback...</div>';
+      }
+
+      res.innerHTML = html + '<span style="color:var(--muted);font-size:0.82rem;">Scanare completă rețea locală... (~5-15s)</span>';
+
+      // Step 2: also run subnet scan as fallback (in case ESP has HTTP server or user wants to see all)
+      try {
+        const r = await fetch('/api/net/scan?port=80&timeout=0.4');
+        const d = await r.json();
+        const candidates = (d.hosts || []).filter(h => h.kind === 'esp');
+        const others = (d.hosts || []).filter(h => h.kind !== 'esp');
+        html += `<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.4rem;">Scan suplimentar ${d.subnet}.1-254 · ${d.found} gazde în ${d.duration_ms}ms</div>`;
+        if (candidates.length) {
+          html += '<div style="font-size:0.82rem;margin-bottom:0.3rem;">Candidați ESP (scan port 80):</div>';
+          html += candidates.map(h => `<div class="preset-item" style="margin-bottom:0.3rem;"><span class="scan-kind esp">ESP</span><span style="font-family:monospace;">${h.ip}</span><span style="flex:1;font-size:0.78rem;color:var(--muted);">${h.title || h.server || ''}</span><button class="btn btn-primary btn-sm" onclick="adoptEspIp('${h.ip}')">Adoptă</button></div>`).join('');
+        } else if (!knownIp) {
+          html += '<div style="color:var(--warning);font-size:0.82rem;margin-bottom:0.5rem;">Nu s-au găsit candidați ESP pe port 80 (ESP32 în mod client nu ascultă). Verifică lista completă:</div>';
+        }
+        if (others.length) {
+          html += `<details style="margin-top:0.5rem;"><summary style="cursor:pointer;font-size:0.82rem;color:var(--muted);">Arată toate cele ${others.length} dispozitive</summary>`;
+          html += others.map(h => `<div class="preset-item" style="margin-top:0.3rem;"><span class="scan-kind ${h.kind || 'unknown'}">${(h.kind || '?').toUpperCase()}</span><span style="font-family:monospace;">${h.ip}</span><span style="flex:1;font-size:0.78rem;color:var(--muted);">${h.title || h.server || ''}</span><button class="btn btn-secondary btn-sm" onclick="adoptEspIp('${h.ip}')">Folosește</button></div>`).join('');
+          html += '</details>';
+        }
+        res.innerHTML = html;
+      } catch (e) {
+        res.innerHTML = '<span style="color:var(--danger)">Eroare scan: ' + e.message + '</span>';
+      }
+    }
+
+    function adoptEspIp(ip) {
+      const a = document.getElementById('ESP_DEVICE_IP_ESP');
+      const b = document.getElementById('ESP_DEVICE_IP');
+      if (a) a.value = ip;
+      if (b) b.value = ip;
+      reachEsp();
+    }
+
+    async function saveEspIpOnly() {
+      const ip = (document.getElementById('ESP_DEVICE_IP_ESP')?.value || '').trim();
+      if (!ip) { alert('Completează IP-ul.'); return; }
+      const b = document.getElementById('ESP_DEVICE_IP');
+      if (b) b.value = ip;
+      try {
+        const r = await fetch('/api/config/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ESP_DEVICE_IP: ip }),
+        });
+        const d = await r.json();
+        const res = document.getElementById('esp-reach-result');
+        res.innerHTML = d.ok ? `<span style="color:var(--success)">✓ Salvat în .env</span>` : `<span style="color:var(--danger)">✗ ${d.error || 'err'}</span>`;
+      } catch (e) {
+        alert('Eroare: ' + e.message);
+      }
+    }
+
+    // ── System info panel ──────────────────────────────────
+    function fmtBytes(n) {
+      if (!n) return '—';
+      const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+      let i = 0; let v = n;
+      while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+      return v.toFixed(v < 10 ? 1 : 0) + ' ' + u[i];
+    }
+    function fmtUptime(s) {
+      if (s === null || s === undefined) return '—';
+      const d = Math.floor(s / 86400);
+      const h = Math.floor((s % 86400) / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+    }
+    async function loadSysInfo() {
+      const grid = document.getElementById('sys-grid');
+      const svc = document.getElementById('sys-services');
+      const host = document.getElementById('sys-host');
+      try {
+        const r = await fetch('/api/sys/info');
+        const d = await r.json();
+        host.textContent = ' — ' + (d.hostname || '');
+        const mem = d.memory || {};
+        const disk = d.disk || {};
+        const la = d.loadavg || [];
+        grid.innerHTML = `
+          <div class="esp-stat">
+            <div class="esp-stat-label">Uptime</div>
+            <div class="esp-stat-value">${fmtUptime(d.uptime_seconds)}</div>
+          </div>
+          <div class="esp-stat">
+            <div class="esp-stat-label">Load avg (1/5/15)</div>
+            <div class="esp-stat-value" style="font-size:0.9rem;">${la.map(x => x.toFixed(2)).join(' / ') || '—'}</div>
+          </div>
+          <div class="esp-stat">
+            <div class="esp-stat-label">RAM ${mem.percent != null ? mem.percent + '%' : ''}</div>
+            <div class="esp-stat-value" style="font-size:0.9rem;">${fmtBytes(mem.used)} / ${fmtBytes(mem.total)}</div>
+            <div class="bar" style="margin-top:0.35rem;"><i style="width:${mem.percent || 0}%"></i></div>
+          </div>
+          <div class="esp-stat">
+            <div class="esp-stat-label">Disc ${disk.percent != null ? disk.percent + '%' : ''}</div>
+            <div class="esp-stat-value" style="font-size:0.9rem;">${fmtBytes(disk.used)} / ${fmtBytes(disk.total)}</div>
+            <div class="bar" style="margin-top:0.35rem;"><i style="width:${disk.percent || 0}%"></i></div>
+          </div>
+          <div class="esp-stat">
+            <div class="esp-stat-label">Server</div>
+            <div class="esp-stat-value" style="font-size:0.85rem;">port ${d.server?.port || '?'}</div>
+          </div>
+          <div class="esp-stat">
+            <div class="esp-stat-label">Public URL</div>
+            <div class="esp-stat-value" style="font-size:0.78rem;word-break:break-all;">${d.server?.public_base_url || '—'}</div>
+          </div>
+        `;
+        const services = d.services || {};
+        svc.innerHTML = Object.entries(services).map(([name, active]) => `
+          <div class="esp-stat">
+            <div class="esp-stat-label">${name}</div>
+            <div class="esp-stat-value">${active ? '<span class="pill pill-ok">ACTIV</span>' : '<span class="pill pill-err">OPRIT</span>'}</div>
+          </div>
+        `).join('');
+        // Cameras live
+        refreshCameraHealth(document.getElementById('sys-cameras'));
+      } catch (e) {
+        grid.innerHTML = '<span style="color:var(--danger)">Eroare: ' + e.message + '</span>';
+      }
+    }
+
+    // ── Camera health cards ───────────────────────────────
+    async function refreshCameraHealth(targetEl) {
+      const el = targetEl || document.getElementById('cam-health');
+      if (!el) return;
+      el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Se verifică...</div>';
+      const cam1Ip = (document.getElementById('CAMERA_IP')?.value || '').trim();
+      const cam2Ip = (document.getElementById('CAMERA2_IP')?.value || '').trim();
+      const cam1Rtsp = parseInt(document.getElementById('CAMERA_RTSP_PORT')?.value || '554');
+      const cam2Rtsp = parseInt(document.getElementById('CAMERA2_RTSP_PORT')?.value || '554');
+      const cam2Http = parseInt(document.getElementById('CAMERA2_HTTP_PORT')?.value || '80');
+
+      async function probe(ip, port) {
+        if (!ip) return { reachable: false, latency_ms: 0, err: 'no ip' };
+        try {
+          const r = await fetch('/api/net/reach?host=' + encodeURIComponent(ip) + '&port=' + port + '&timeout=1.5');
+          return await r.json();
+        } catch (e) { return { reachable: false, err: e.message }; }
+      }
+
+      const [c1rtsp, c2rtsp, c2http] = await Promise.all([
+        probe(cam1Ip, cam1Rtsp),
+        probe(cam2Ip, cam2Rtsp),
+        probe(cam2Ip, cam2Http),
+      ]);
+
+      function card(title, ip, probes) {
+        const online = probes.some(p => p.ok && p.reachable);
+        const pill = !ip ? '<span class="pill pill-warn">FĂRĂ IP</span>'
+          : online ? '<span class="pill pill-ok">ONLINE</span>'
+            : '<span class="pill pill-err">OFFLINE</span>';
+        const rows = probes.map(p => {
+          const lbl = p.label;
+          if (!ip) return `<span>${lbl}: —</span>`;
+          if (p.reachable) return `<span>${lbl}: <b style="color:var(--success)">✓ ${p.latency_ms}ms</b></span>`;
+          return `<span>${lbl}: <b style="color:var(--danger)">✗</b></span>`;
+        }).join('');
+        return `
+          <div class="health-card">
+            <div class="hc-title">${title} ${pill}</div>
+            <div class="hc-sub">${ip || '<i>fără IP configurat</i>'}</div>
+            <div class="hc-metrics">${rows}</div>
+          </div>`;
+      }
+
+      el.innerHTML = card('Camera 1 (fixă)', cam1Ip, [
+        { ...c1rtsp, label: 'RTSP ' + cam1Rtsp },
+      ]) + card('Camera 2 (PTZ)', cam2Ip, [
+        { ...c2rtsp, label: 'RTSP ' + cam2Rtsp },
+        { ...c2http, label: 'HTTP ' + cam2Http },
+      ]);
+    }
+
+    function refreshAll() {
+      loadSysInfo();
+      refreshCameraHealth();
+      loadEspStatus();
+      reachEsp();
+    }
+
+    // ── Network scanner tab ───────────────────────────────
+    async function loadNetInfo() {
+      const el = document.getElementById('net-info');
+      try {
+        const r = await fetch('/api/net/info');
+        const d = await r.json();
+        el.innerHTML = `Host: <b>${d.hostname}</b> · IP local: <b>${d.ip || '—'}</b> · Subnet: <b>${d.subnet24 || '—'}.0/24</b> · Gateway: <b>${d.gateway || '—'}</b>`;
+        const sub = document.getElementById('scan-subnet');
+        if (sub && !sub.value) sub.value = d.subnet24 || '';
+      } catch (e) {
+        el.textContent = 'Eroare: ' + e.message;
+      }
+    }
+    async function runScan() {
+      const btn = document.getElementById('scan-btn');
+      const info = document.getElementById('scan-info');
+      const results = document.getElementById('scan-results');
+      btn.disabled = true; btn.textContent = '⏳ Scanează...';
+      info.textContent = '';
+      results.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;margin-top:0.75rem;">Se scanează 254 IP-uri în paralel...</div>';
+      const subnet = (document.getElementById('scan-subnet').value || '').trim();
+      const port = parseInt(document.getElementById('scan-port').value || '80');
+      const timeout = parseFloat(document.getElementById('scan-timeout').value || '0.4');
+      const qs = new URLSearchParams({ port, timeout, fingerprint: 'true' });
+      if (subnet) qs.set('subnet', subnet);
+      try {
+        const r = await fetch('/api/net/scan?' + qs.toString());
+        const d = await r.json();
+        info.textContent = `${d.subnet}.1-254 · ${d.found} gazde · ${d.duration_ms}ms`;
+        if (!d.hosts.length) {
+          results.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:0.75rem;">Niciun dispozitiv pe port ' + port + '.</div>';
+        } else {
+          results.innerHTML = `
+            <table class="scan-table">
+              <thead><tr><th>Tip</th><th>IP</th><th>Latenţă</th><th>Server</th><th>Titlu</th><th>Acțiuni</th></tr></thead>
+              <tbody>${d.hosts.map(h => `
+                <tr>
+                  <td><span class="scan-kind ${h.kind || 'unknown'}">${(h.kind || '?').toUpperCase()}</span></td>
+                  <td style="font-family:monospace;">${h.ip}</td>
+                  <td>${h.latency_ms}ms</td>
+                  <td>${h.server || '—'}</td>
+                  <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.title || '—'}</td>
+                  <td>
+                    <button class="btn btn-secondary btn-sm" onclick="adoptEspIp('${h.ip}');switchTab('esp')">→ ESP</button>
+                  </td>
+                </tr>`).join('')}</tbody>
+            </table>`;
+        }
+      } catch (e) {
+        results.innerHTML = '<span style="color:var(--danger)">Eroare: ' + e.message + '</span>';
+      } finally {
+        btn.disabled = false; btn.textContent = '🔎 Scanează (254 IP-uri)';
+      }
+    }
+
+    // Auto-load camera health on first render
+    window.addEventListener('DOMContentLoaded', () => { setTimeout(refreshCameraHealth, 150); });
+
+    // ── Collect all inputs into a config object ───────────
+    function collectConfig() {
+      const ids = [
+        'CAMERA_IP', 'CAMERA_RTSP_PORT', 'CAMERA_USERNAME', 'CAMERA_PASSWORD',
+        'RTSP_MAIN_PATH', 'RTSP_SUB_PATH',
+        'CAMERA2_IP', 'CAMERA2_RTSP_PORT', 'CAMERA2_HTTP_PORT', 'CAMERA2_SDK_PORT',
+        'CAMERA2_USERNAME', 'CAMERA2_PASSWORD', 'CAMERA2_ONVIF_PROFILE',
+        'ALPR_DETECTOR_MODEL', 'ALPR_OCR_MODEL', 'ALPR_ENABLED',
+        'ALPR_UPSCALE_RETRY', 'ALPR_PREDICT_UPSCALE',
+        'RECORDING_DURATION_SECONDS', 'ESP_COUNTDOWN_SECONDS',
+        'WORKFLOW_RECORD_STREAM', 'ESP_DEVICE_IP', 'ESP_HELP_NOTE',
+        'PUBLIC_BASE_URL', 'PORTAL_PATH_PREFIX', 'CUSTOMER_LINK_TTL_DAYS',
+        'PORTAL_BRAND_NAME', 'PORTAL_FOOTER_PHONE', 'PORTAL_FOOTER_EMAIL',
+        'SMS_BACKEND', 'SMS_HTTP_URL', 'SMS_HTTP_METHOD', 'SMS_HTTP_BODY_TEMPLATE',
+      ];
+
+      const config = {};
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        if (el.type === 'checkbox') {
+          config[id] = el.checked ? '1' : '0';
+        } else if (el.type === 'range' && id === 'ALPR_DETECTOR_CONF_THRESH') {
+          config[id] = (el.value / 100).toFixed(2);
+        } else {
+          const v = el.value.trim();
+          if (v !== '') config[id] = v;  // skip empty (don't overwrite with blank)
+        }
+      }
+      return config;
+    }
+
+    // ── Save config ───────────────────────────────────────
+    async function saveConfig() {
+      const statusEl = document.getElementById('save-status');
+      statusEl.className = 'save-status';
+      statusEl.textContent = 'Salvare...';
+
+      const config = collectConfig();
+      try {
+        const r = await fetch('/api/config/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        const data = await r.json();
+        if (data.ok) {
+          statusEl.className = 'save-status ok';
+          statusEl.textContent = `✓ Salvat(${data.saved?.length || 0} chei)`;
+        } else {
+          statusEl.className = 'save-status err';
+          statusEl.textContent = `✗ Eroare: ${data.error} `;
+        }
+      } catch (e) {
+        statusEl.className = 'save-status err';
+        statusEl.textContent = `✗ ${e.message}`;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // Video Gallery
+    // ══════════════════════════════════════════════════════════
+    let _galleryData = { events: [], manual: [] };
+
+    function _humanSize(bytes) {
+      if (!bytes || bytes < 1024) return (bytes || 0) + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    function _humanDate(isoOrMs) {
+      const d = typeof isoOrMs === 'number' ? new Date(isoOrMs) : new Date(isoOrMs);
+      if (isNaN(d)) return '—';
+      return d.toLocaleString('ro-RO', { dateStyle: 'short', timeStyle: 'medium' });
+    }
+
+    // cam1_2026-04-20T21-30-12-123Z.mp4  →  1
+    function _cameraFromFilename(name) {
+      const m = /^cam(\d+)_/i.exec(name || '');
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    async function loadGallery() {
+      const evEl = document.getElementById('gallery-events');
+      const manEl = document.getElementById('gallery-manual');
+      const countEl = document.getElementById('gallery-count');
+      evEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Se încarcă evenimente...</div>';
+      manEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Se încarcă manuale...</div>';
+
+      try {
+        const [evRes, manRes] = await Promise.all([
+          fetch('/api/events').then(r => r.ok ? r.json() : { events: [] }),
+          fetch('/api/recordings').then(r => r.ok ? r.json() : { files: [] }),
+        ]);
+        _galleryData.events = evRes.events || [];
+        _galleryData.manual = manRes.files || [];
+        countEl.textContent = `· ${_galleryData.events.length} evenimente · ${_galleryData.manual.length} manuale`;
+        renderGallery();
+      } catch (e) {
+        evEl.innerHTML = `<div style="color:var(--danger)">Eroare: ${e.message}</div>`;
+        manEl.innerHTML = '';
+      }
+    }
+
+    function renderGallery() {
+      const source = document.getElementById('gallery-source').value;
+      const cam = document.getElementById('gallery-camera').value;
+      const q = (document.getElementById('gallery-search').value || '').toLowerCase().trim();
+
+      const evEl = document.getElementById('gallery-events');
+      const manEl = document.getElementById('gallery-manual');
+
+      // ── Events ──────────────────────────────────────────
+      if (source === 'manual') {
+        evEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">(ascuns prin filtru sursă)</div>';
+      } else {
+        const shownEvents = _galleryData.events.filter(ev => {
+          const hay = [ev.event_id, ev.selected_plate || '', ev.created_at || ''].join(' ').toLowerCase();
+          if (q && !hay.includes(q)) return false;
+          if (cam === '1' && !ev.videos?.camera1) return false;
+          if (cam === '2' && !ev.videos?.camera2) return false;
+          return true;
+        });
+        if (!shownEvents.length) {
+          evEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Nu există evenimente care să corespundă filtrelor.</div>';
+        } else {
+          evEl.innerHTML = shownEvents.map(ev => renderEventCard(ev, cam)).join('');
+        }
+      }
+
+      // ── Manual recordings ───────────────────────────────
+      if (source === 'event') {
+        manEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">(ascuns prin filtru sursă)</div>';
+      } else {
+        const shownManual = _galleryData.manual.filter(f => {
+          if (q && !f.filename.toLowerCase().includes(q)) return false;
+          if (cam !== 'all') {
+            const c = _cameraFromFilename(f.filename);
+            if (String(c) !== cam) return false;
+          }
+          return true;
+        });
+        if (!shownManual.length) {
+          manEl.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">Nu există înregistrări manuale care să corespundă filtrelor.</div>';
+        } else {
+          manEl.innerHTML = shownManual.map(f => renderManualCard(f)).join('');
+        }
+      }
+    }
+
+    function renderEventCard(ev, camFilter) {
+      const showCam1 = (camFilter === 'all' || camFilter === '1') && ev.videos?.camera1;
+      const showCam2 = (camFilter === 'all' || camFilter === '2') && ev.videos?.camera2;
+      const plate = ev.selected_plate && ev.selected_plate !== 'UNKNOWN' ? ev.selected_plate : null;
+      return `
+        <div class="section-card" style="padding:0.9rem;">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;flex-wrap:wrap;">
+            <span style="font-family:monospace;font-weight:600;">${ev.event_id}</span>
+            ${plate ? `<span class="pill pill-ok" style="font-family:monospace;">🚗 ${plate}</span>` : ''}
+            <span style="color:var(--muted);font-size:0.8rem;">${_humanDate(ev.created_at)}</span>
+            <span style="flex:1;"></span>
+            <a class="btn btn-secondary btn-sm" href="/events/${ev.event_id}/" target="_blank">📂 Director</a>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0.75rem;">
+            ${showCam1 ? _videoTile(`Camera 1 (fixă)`, ev.videos.camera1, ev.event_id + '-c1') : ''}
+            ${showCam2 ? _videoTile(`Camera 2 (PTZ)`, ev.videos.camera2, ev.event_id + '-c2') : ''}
+            ${ev.snapshot_url ? `
+              <div style="display:flex;flex-direction:column;gap:0.3rem;">
+                <div style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">ALPR Snapshot</div>
+                <a href="${ev.snapshot_url}" target="_blank"><img src="${ev.snapshot_url}" style="width:100%;border-radius:0.4rem;border:1px solid var(--border);" loading="lazy"></a>
+              </div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function _videoTile(label, url, key) {
+      return `
+        <div style="display:flex;flex-direction:column;gap:0.3rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;">${label}</span>
+            <a href="${url}" download style="font-size:0.78rem;" class="btn btn-secondary btn-sm">⬇</a>
+          </div>
+          <video controls preload="metadata" src="${url}" style="width:100%;max-height:260px;border-radius:0.4rem;background:#000;" data-key="${key}"></video>
+        </div>`;
+    }
+
+    function renderManualCard(f) {
+      const cam = _cameraFromFilename(f.filename);
+      return `
+        <div class="section-card" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.5rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
+            <span class="pill ${cam === 1 ? 'pill-ok' : cam === 2 ? 'pill-warn' : ''}">${cam ? `CAM ${cam}` : 'CAM ?'}</span>
+            <span style="color:var(--muted);font-size:0.78rem;">${f.sizeMB} MB</span>
+          </div>
+          <video controls preload="metadata" src="${f.url}" style="width:100%;max-height:200px;border-radius:0.4rem;background:#000;"></video>
+          <div style="font-size:0.75rem;color:var(--muted);word-break:break-all;" title="${f.filename}">${f.filename}</div>
+          <div style="font-size:0.75rem;color:var(--muted);">${_humanDate(f.created)}</div>
+          <div style="display:flex;gap:0.4rem;">
+            <a class="btn btn-secondary btn-sm" href="${f.downloadUrl || f.url}" download style="flex:1;text-align:center;">⬇ Download</a>
+            <button class="btn btn-secondary btn-sm" style="color:var(--danger);" onclick="deleteManualRecording('${f.filename.replace(/'/g, "\\'")}')">🗑</button>
+          </div>
+        </div>`;
+    }
+
+    async function deleteManualRecording(filename) {
+      if (!confirm(`Ștergi definitiv ${filename}?`)) return;
+      try {
+        const r = await fetch(`/api/recordings/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        loadGallery();
+      } catch (e) {
+        alert('Eroare la ștergere: ' + e.message);
+      }
+    }
+
+    // Filter listeners (applied client-side without refetch)
+    ['gallery-source', 'gallery-camera'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', renderGallery);
     });
-    const data = await r.json();
-    if (data.ok) {
-      statusEl.className = 'save-status ok';
-      statusEl.textContent = `✓ Salvat (${data.saved?.length || 0} chei)`;
-    } else {
-      statusEl.className = 'save-status err';
-      statusEl.textContent = `✗ Eroare: ${data.error}`;
-    }
-  } catch(e) {
-    statusEl.className = 'save-status err';
-    statusEl.textContent = `✗ ${e.message}`;
-  }
-}
-</script>
+    document.getElementById('gallery-search')?.addEventListener('input', () => {
+      clearTimeout(window._galleryDebounce);
+      window._galleryDebounce = setTimeout(renderGallery, 200);
+    });
+  </script>
 </body>
+
 </html>

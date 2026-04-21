@@ -1,0 +1,96 @@
+{"sessionId": "e5dd89", "timestamp": 1776719516423, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776719516701, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776719578254, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776719582824, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 5, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776719586675, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 9, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776719589160, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 9, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776719622160, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776719789722, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776719797728, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776719797835, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719826363, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719827930, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719828722, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719828985, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719829215, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776719924333, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776719984590, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776719996238, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776719996314, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776720011391, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720478097, "hypothesisId": "F", "location": "main._Debug500Middleware", "message": "http_500_response", "runId": "pre-fix", "data": {"path": "/api/alpr/test", "method": "POST", "status": 500}}
+{"sessionId": "e5dd89", "timestamp": 1776720482979, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720483771, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720484026, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720484109, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720484767, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720484977, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776720958032, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776721144237, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776721384059, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776721416396, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776723262326, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776723792600, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776723812060, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776723892357, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724145574, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724582531, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724585875, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724608591, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724954051, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724955089, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724955990, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724956321, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724956501, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776724991597, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776725001215, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776725001376, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776725008011, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776725011931, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776725046713, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776725640607, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776725641375, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776725677674, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776725746238, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776727510357, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776727900876, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776727901889, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776728099901, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728191553, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728192377, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728213748, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728214600, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728242419, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728243139, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728423303, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728424146, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728427371, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728428026, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728964048, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728967920, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776728979057, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729010732, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776729036153, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729042350, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729074120, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776729084041, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776729084188, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729100719, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 5, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776729100870, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "admin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729139605, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776729152207, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 5, "next_len": 6}}
+{"sessionId": "e5dd89", "timestamp": 1776729152281, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "admin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729159213, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "admin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729166185, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "admin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729167897, "hypothesisId": "D", "location": "admin_api.admin_page", "message": "render_admin", "runId": "pre-fix", "data": {"role": "admin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729294474, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729299362, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729299715, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729300548, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729300800, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729378291, "hypothesisId": "B", "location": "auth.login_page", "message": "enter", "runId": "pre-fix", "data": {"next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776729382165, "hypothesisId": "B", "location": "auth.login_submit", "message": "enter", "runId": "pre-fix", "data": {"pwd_len": 12, "next_len": 10}}
+{"sessionId": "e5dd89", "timestamp": 1776729382239, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729385783, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}
+{"sessionId": "e5dd89", "timestamp": 1776729387003, "hypothesisId": "D", "location": "superadmin_api.superadmin_page", "message": "render_superadmin", "runId": "pre-fix", "data": {"role": "superadmin"}}
+{"sessionId": "e5dd89", "timestamp": 1776729390664, "hypothesisId": "A", "location": "config_api.configure_page", "message": "enter", "runId": "pre-fix", "data": {"env_file_exists": true}}

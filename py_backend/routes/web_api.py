@@ -602,6 +602,22 @@ async def api_workflow_status(request: Request) -> dict:
     return _workflow(request).status()
 
 
+def _find_camera_video(event_dir: Path, cam: int) -> Optional[str]:
+    """Look up camera video, supporting both new (<plate>_cam1.mp4) and legacy (camera1.mp4) names."""
+    legacy = event_dir / f"camera{cam}.mp4"
+    if legacy.exists():
+        return legacy.name
+    # New naming: any *_cam{N}.mp4 (ordered: most recently modified wins if multiple)
+    matches = sorted(
+        event_dir.glob(f"*_cam{cam}.mp4"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if matches:
+        return matches[0].name
+    return None
+
+
 def _read_event_payload(path: Path) -> dict:
     alpr_json = path / "alpr.json"
     payload = {}
@@ -611,17 +627,21 @@ def _read_event_payload(path: Path) -> dict:
             payload = json.loads(alpr_json.read_text())
         except Exception:
             payload = {}
+
+    cam1_name = _find_camera_video(path, 1)
+    cam2_name = _find_camera_video(path, 2)
+
     return {
         "event_id": path.name,
         "folder": path.name,
         "created": int(stat.st_ctime * 1000),
         "created_at": datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc).isoformat(),
-        "selected_plate": payload.get("selected_plate", "UNKNOWN"),
+        "selected_plate": payload.get("selected_plate") or "UNKNOWN",
         "snapshot_url": f"/events/{path.name}/alpr_start.jpg" if (path / "alpr_start.jpg").exists() else None,
         "alpr": payload,
         "videos": {
-            "camera1": f"/events/{path.name}/camera1.mp4" if (path / "camera1.mp4").exists() else None,
-            "camera2": f"/events/{path.name}/camera2.mp4" if (path / "camera2.mp4").exists() else None,
+            "camera1": f"/events/{path.name}/{cam1_name}" if cam1_name else None,
+            "camera2": f"/events/{path.name}/{cam2_name}" if cam2_name else None,
         },
     }
 
@@ -663,13 +683,22 @@ class EspHeartbeatPayload(BaseModel):
     wifi_ssid: Optional[str] = Field(default=None)
     countdown_seconds: Optional[int] = Field(default=None)
     state: Optional[str] = Field(default=None)
+    fw: Optional[str] = Field(default=None)
+    uptime_s: Optional[int] = Field(default=None)
+    rssi: Optional[int] = Field(default=None)
 
 
 @router.post("/api/esp/heartbeat", summary="ESP posts its current status")
-async def esp_heartbeat_post(payload: EspHeartbeatPayload) -> dict:
-    """Receive a status heartbeat from the ESP32 device."""
+async def esp_heartbeat_post(payload: EspHeartbeatPayload, request: Request) -> dict:
+    """Receive a status heartbeat from the ESP32 device.
+
+    Also captures the source IP so the dashboard can auto-discover ESP without
+    requiring the ESP to run an HTTP server (port-80 scans would never find it).
+    """
+    source_ip = request.client.host if request.client else None
     _esp_heartbeat_cache.update({
         **payload.model_dump(exclude_none=True),
+        "source_ip": source_ip,
         "received_at": datetime.now(timezone.utc).isoformat(),
     })
     return {"ok": True}

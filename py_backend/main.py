@@ -30,7 +30,9 @@ from routes.camera_control import router as camera_control_router
 from routes.config_api import router as config_api_router
 from routes.customer_portal import router as customer_portal_router
 from routes.esp_config import render_help_esp1_page, router as esp_config_router
+from routes.network_diag import router as network_diag_router
 from routes.recordings import router as recordings_router
+from routes.sms_test import router as sms_test_router
 from routes.superadmin_api import router as superadmin_api_router
 from routes.trigger import router as trigger_router
 from routes.web_api import router as web_api_router
@@ -176,10 +178,12 @@ app.include_router(superadmin_api_router)
 # Core routes
 app.include_router(trigger_router)
 app.include_router(esp_config_router)
+app.include_router(network_diag_router)
 app.include_router(recordings_router)
 app.include_router(camera_control_router)
 app.include_router(web_api_router)
 app.include_router(customer_portal_router)
+app.include_router(sms_test_router)
 
 
 # ── Exception handler for auth redirects ─────────────────────────
