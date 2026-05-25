@@ -37,9 +37,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory=str(settings.templates_dir_abs))
 
-# In-memory cleanup log
-_last_cleanup_log: dict[str, Any] = {}
-
 
 def _get_portal_service(request: Request):
     return request.app.state.customer_portal
@@ -258,16 +255,20 @@ async def cleanup_now(
     portal = _get_portal_service(request)
     cleanup_days = int(portal.get_config_value("cleanup_days", "30"))
 
-    from services.cleanup_service import run_cleanup
+    from services.cleanup_service import get_last_cleanup_log_text, run_cleanup, set_last_cleanup_log
+
     log = await run_cleanup(portal, cleanup_days)
-    return {"ok": True, "log": log}
+    set_last_cleanup_log(log)
+    return {"ok": True, "log": get_last_cleanup_log_text(), "stats": log}
 
 
 @router.get("/api/superadmin/cleanup-log", summary="Get last cleanup log")
 async def cleanup_log(
     _role: str = Depends(require_superadmin),
 ) -> dict:
-    return {"log": _last_cleanup_log}
+    from services.cleanup_service import get_last_cleanup_log_text
+
+    return {"log": get_last_cleanup_log_text() or ""}
 
 
 # ── Cleanup config ────────────────────────────────────────────────

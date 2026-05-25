@@ -1,0 +1,22 @@
+[Unit]
+Description=Tedde FastAPI (uvicorn on 127.0.0.1:8000)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tedde-auto
+Group=tedde-auto
+EnvironmentFile=-/etc/default/tedde
+# Load TEDDE_ROOT then exec helper under the repo
+ExecStart=/bin/bash -c 'set -a; [ -f /etc/default/tedde ] && . /etc/default/tedde; set +a; : "${TEDDE_ROOT:?}"; exec "$TEDDE_ROOT/deploy/tedde-api-start.sh"'
+
+# Rulează continuu: repornire la crash + împreună cu restul de la boot (enable în multi-user)
+Restart=always
+RestartSec=4
+# Evită bucle infinite (încearcă de câteva ori apoi așteaptă)
+StartLimitIntervalSec=120
+StartLimitBurst=8
+
+[Install]
+WantedBy=multi-user.target

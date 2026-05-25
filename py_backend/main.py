@@ -9,7 +9,8 @@ import traceback
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Security, status
+from fastapi.security import APIKeyHeader
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -66,6 +67,8 @@ async def lifespan(app: FastAPI):
     workflow = WorkflowService(
         recording_manager=recording_manager,
         alpr_service=alpr_service,
+        ptz_client=ptz_client,
+        customer_portal=customer_portal,
     )
 
     app.state.recording_manager = recording_manager
@@ -112,6 +115,8 @@ app = FastAPI(
     description="FastAPI-only dashboard, ESP workflow, camera control, and ALPR runtime.",
     version="3.1.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.add_middleware(
@@ -168,22 +173,22 @@ app.mount("/recordings", StaticFiles(directory=settings.recordings_dir_abs), nam
 app.mount("/events", StaticFiles(directory=settings.events_dir_abs), name="events")
 
 # Auth (login/logout)
-app.include_router(auth_router)
+app.include_router(auth_router, include_in_schema=False)
 
 # Admin dashboards
-app.include_router(config_api_router)
-app.include_router(admin_api_router)
-app.include_router(superadmin_api_router)
+app.include_router(config_api_router, include_in_schema=False)
+app.include_router(admin_api_router, include_in_schema=False)
+app.include_router(superadmin_api_router, include_in_schema=False)
 
 # Core routes
-app.include_router(trigger_router)
-app.include_router(esp_config_router)
-app.include_router(network_diag_router)
-app.include_router(recordings_router)
-app.include_router(camera_control_router)
-app.include_router(web_api_router)
+app.include_router(trigger_router, include_in_schema=False)
+app.include_router(esp_config_router, include_in_schema=False)
+app.include_router(network_diag_router, include_in_schema=False)
+app.include_router(recordings_router, include_in_schema=False)
+app.include_router(camera_control_router, include_in_schema=False)
+app.include_router(web_api_router, include_in_schema=False)
 app.include_router(customer_portal_router)
-app.include_router(sms_test_router)
+app.include_router(sms_test_router, include_in_schema=False)
 
 
 # ── Exception handler for auth redirects ─────────────────────────

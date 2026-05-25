@@ -105,18 +105,48 @@ def esp_help(request: Request) -> dict:
     return esp_help_payload(request)
 
 
+def _effective_countdown_seconds() -> int:
+    """Total time the ESP LCD should count down for, in seconds.
+
+    Priority:
+    1. ESP_COUNTDOWN_SECONDS in .env (manual override).
+    2. If a PTZ multi-step workflow is active (both presets + durations),
+       sum the phases so the LCD reflects the real workflow length:
+       PTZ_HOME + PTZ_SETTLE + PTZ_SECONDARY.
+    3. Fall back to RECORDING_DURATION_SECONDS (single-step recording).
+
+    Clamped to the ESP firmware bounds (5..3600 s) defined in codespactual.c.
+    """
+    if settings.esp_countdown_seconds is not None:
+        return int(settings.esp_countdown_seconds)
+
+    home = settings.ptz_home_recording_seconds
+    sec = settings.ptz_secondary_recording_seconds
+    settle = settings.ptz_settle_seconds
+
+    ptz_active = (
+        bool(settings.ptz_preset_home) and home > 0
+        and bool(settings.ptz_preset_secondary) and sec > 0
+    )
+    if ptz_active:
+        total = home + settle + sec
+    else:
+        total = settings.recording_duration_seconds
+
+    # Match firmware's COUNTDOWN_MIN/MAX_SECONDS in codespactual.c.
+    return max(5, min(3600, int(total)))
+
+
 @router.get("/config", summary="Timer/countdown values for ESP32")
 def esp_config() -> dict:
     """
     Fields:
     - **countdown_seconds**: what to show on the ESP countdown (and send as JSON \"value\").
+      Auto-computed from PTZ phases when a multi-step workflow is configured,
+      so the LCD always matches the real recording duration without re-flashing.
     - **recording_duration_seconds**: default recording length on the server if POST omits \"value\".
     """
-    countdown = (
-        settings.esp_countdown_seconds
-        if settings.esp_countdown_seconds is not None
-        else settings.recording_duration_seconds
-    )
+    countdown = _effective_countdown_seconds()
     logger.debug("GET /api/esp/config → countdown=%s", countdown)
     event_log.step(
         f"ESP: citit timer din server → countdown={countdown}s, "
@@ -125,4 +155,6 @@ def esp_config() -> dict:
     return {
         "countdown_seconds": countdown,
         "recording_duration_seconds": settings.recording_duration_seconds,
+        "ptz_home_seconds": settings.ptz_home_recording_seconds,
+        "ptz_secondary_seconds": settings.ptz_secondary_recording_seconds,
     }

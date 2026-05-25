@@ -75,6 +75,26 @@ async def api_stream(
     fps: int = 5,
     width: int | None = None,
 ) -> StreamingResponse:
+    # Refuse opening a new RTSP-driven MJPEG stream while the camera is being
+    # recorded by an active workflow: HiLook/Hikvision IP cameras have a small
+    # cap on concurrent RTSP sessions and an extra preview connection is enough
+    # to make the camera silently drop the long-running recording session a few
+    # minutes later. Frontends should poll a snapshot fallback instead.
+    workflow = _workflow(request)
+    status = workflow.status()
+    if status.get("active"):
+        last = status.get("last_event") or {}
+        active_cams = last.get("cameras") or []
+        if camera in active_cams:
+            return JSONResponse(
+                status_code=409,
+                content={
+                    "success": False,
+                    "error": "workflow_active",
+                    "detail": f"Camera {camera} este folosită de un workflow activ. "
+                              "Live preview este indisponibil pe durata înregistrării.",
+                },
+            )
     media = mjpeg_stream(
         request=request,
         camera=camera,
@@ -668,6 +688,17 @@ async def api_event_detail(event_id: str) -> dict:
     if not target.exists() or not target.is_dir():
         raise HTTPException(status_code=404, detail="Event not found")
     return _read_event_payload(target)
+
+
+@router.delete("/api/events/{event_id}")
+async def api_delete_event(event_id: str) -> dict:
+    safe = Path(event_id).name
+    target = settings.events_dir_abs / safe
+    if not target.exists() or not target.is_dir():
+        raise HTTPException(status_code=404, detail="Event not found")
+    import shutil
+    shutil.rmtree(target)
+    return {"ok": True, "deleted": safe}
 
 
 # ── ESP Heartbeat ─────────────────────────────────────────────────

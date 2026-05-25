@@ -2,15 +2,15 @@
 
 :root {
   color-scheme: light;
-  --portal-canvas: #f3f4f6;
+  --portal-canvas: #eef1f6;
   --portal-surface: #ffffff;
-  --portal-text: #111827;
-  --portal-muted: #6b7280;
-  --portal-border: #e5e7eb;
+  --portal-text: #0f172a;
+  --portal-muted: #64748b;
+  --portal-border: #dde3ee;
   --portal-radius: 14px;
   --portal-radius-sm: 12px;
-  --portal-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 0, 0, 0.04);
-  --portal-focus: #2563eb;
+  --portal-shadow: 0 1px 3px rgba(15, 30, 60, 0.07), 0 4px 16px rgba(15, 30, 60, 0.05);
+  --portal-focus: var(--portal-accent, #1d4ed8);
 }
 
 * {
@@ -276,14 +276,14 @@ body {
   padding: 12px 16px;
   border: 1px solid var(--portal-border);
   border-radius: var(--portal-radius-sm);
-  background: #fafafa;
+  background: #f8faff;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .rating-option:hover {
-  border-color: #94a3b8;
-  background: var(--portal-surface);
+  border-color: var(--portal-accent, #1d4ed8);
+  background: #f0f5ff;
 }
 
 .rating-option:focus-within {
@@ -307,7 +307,7 @@ textarea {
   font: inherit;
   resize: vertical;
   min-height: 120px;
-  background: #fafafa;
+  background: #f8faff;
 }
 
 textarea:focus-visible {
@@ -320,24 +320,27 @@ textarea:focus-visible {
   width: 100%;
   border: 0;
   border-radius: var(--portal-radius-sm);
-  padding: 16px 20px;
-  background: var(--portal-accent);
+  padding: 15px 24px;
+  background: var(--portal-accent, #1d4ed8);
   color: #ffffff;
   font: inherit;
   font-weight: 700;
   font-size: 1rem;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
-  transition: transform 0.12s ease, filter 0.12s ease;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.35), 0 1px 2px rgba(0,0,0,0.1);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
 }
 
 .primary-btn:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.07);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.45), 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .primary-btn:active {
-  transform: scale(0.99);
+  transform: scale(0.985);
+  filter: brightness(0.97);
 }
 
 .primary-btn:focus-visible {

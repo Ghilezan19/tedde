@@ -9,6 +9,7 @@ Can also be triggered manually via the super-admin API.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import shutil
 from datetime import datetime, timedelta, timezone
@@ -23,6 +24,25 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _CLEANUP_INTERVAL_SECONDS = 3600  # 1 hour
+
+# Last cleanup result as JSON text (for super-admin UI / GET cleanup-log)
+_last_cleanup_log_text: str = ""
+
+
+def format_cleanup_log(log: dict[str, Any]) -> str:
+    try:
+        return json.dumps(log, indent=2, ensure_ascii=False)
+    except Exception:
+        return str(log)
+
+
+def set_last_cleanup_log(log: dict[str, Any]) -> None:
+    global _last_cleanup_log_text
+    _last_cleanup_log_text = format_cleanup_log(log)
+
+
+def get_last_cleanup_log_text() -> str:
+    return _last_cleanup_log_text
 
 
 async def run_cleanup(portal: "CustomerPortalService", cleanup_days: int) -> dict[str, Any]:
@@ -117,7 +137,8 @@ async def cleanup_loop(portal: "CustomerPortalService") -> None:
                 logger.debug("[CLEANUP] Auto-cleanup disabled, skipping")
                 continue
             cleanup_days = int(portal.get_config_value("cleanup_days", "30"))
-            await run_cleanup(portal, cleanup_days)
+            log_result = await run_cleanup(portal, cleanup_days)
+            set_last_cleanup_log(log_result)
         except asyncio.CancelledError:
             logger.info("[CLEANUP] Background loop cancelled")
             raise

@@ -196,6 +196,28 @@ class Settings(BaseSettings):
         default="cct-xs-v2-global-model",
         description="OCR model name from fast-plate-ocr hub (see fast_alpr ocr_model).",
     )
+    alpr_interval_seconds: int = Field(
+        default=30,
+        ge=5,
+        description="Interval intre snapshot-urile ALPR in timpul recording-ului (sec).",
+    )
+    alpr_start_delay_seconds: int = Field(
+        default=60,
+        ge=0,
+        description="Delay inainte de primul snapshot ALPR (sec). De obicei = ptz_home_recording_seconds, "
+                    "ca PTZ-ul sa fie deja la presetul 'Masina' cand incepem sa cautam placuta.",
+    )
+    alpr_snapshot_stream: str = Field(
+        default="sub",
+        description="Stream RTSP folosit pentru snapshot-urile ALPR ('main' sau 'sub'). "
+                    "Default 'sub' ca sa nu blocheze main-stream-ul tinut de ffmpeg-ul de recording.",
+    )
+    alpr_min_confidence: float = Field(
+        default=50.0,
+        ge=0.0,
+        le=100.0,
+        description="Confidence minim (%) pentru ca un sample ALPR sa fie considerat valid la agregare.",
+    )
 
     # ------------------------------------------------------------------ #
     # Admin dashboards auth

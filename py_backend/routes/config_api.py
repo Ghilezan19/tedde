@@ -8,8 +8,11 @@ GET  /configure         — serve the Configure dashboard HTML page
 
 from __future__ import annotations
 
+import asyncio
+import os
 import re
 import shutil
+import signal
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -191,6 +194,31 @@ async def save_config(
     for k in _READONLY_KEYS:
         new_values.pop(k, None)
 
+    # Never overwrite sensitive fields (passwords, secrets) with empty values.
+    # Empty means "don't change" on the UI side, so we drop them here too.
+    for k in list(new_values.keys()):
+        if k in _SENSITIVE_KEYS and new_values[k].strip() == "":
+            new_values.pop(k, None)
+
     _write_env(new_values)
 
     return JSONResponse({"ok": True, "saved": list(new_values.keys())})
+
+
+async def _delayed_exit() -> None:
+    """Exit the process after a short delay so the HTTP response can be flushed.
+
+    systemd will restart the unit thanks to Restart=always.
+    """
+    await asyncio.sleep(0.5)
+    os.kill(os.getpid(), signal.SIGTERM)
+
+
+@router.post("/api/admin/restart", summary="Restart backend (triggers systemd restart)")
+async def restart_backend(role: str = Depends(require_superadmin)) -> JSONResponse:
+    """Gracefully exit so systemd (Restart=always) brings the service back up.
+
+    Takes ~5 seconds total — the systemd unit has RestartSec=4.
+    """
+    asyncio.create_task(_delayed_exit())
+    return JSONResponse({"ok": True, "message": "Backend se va reporni în câteva secunde."})

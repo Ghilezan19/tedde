@@ -1,0 +1,12 @@
+# Pregătit pentru laptop + acces VM prin Tailscale. Copie:
+#   sudo install -m 600 -T deploy/tedde.default.edge /etc/default/tedde
+# sau folosește: sudo bash deploy/apply-edge-laptop.sh
+TEDDE_ROOT=/home/tedde-auto/work/tedde
+PYTHON=/home/tedde-auto/work/tedde/.venv/bin/python
+PNPM=/home/tedde-auto/.local/share/pnpm/pnpm
+BACKEND_URL=http://127.0.0.1:8000
+UVICORN_HOST=0.0.0.0
+UVICORN_PORT=8000
+NEXT_HOST=0.0.0.0
+NEXT_PORT=3000
+TAILSCALE_VM_IP=100.119.3.62

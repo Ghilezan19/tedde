@@ -8,8 +8,8 @@ GET  /logout         — Clear session cookie, redirect to /login
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from config import settings
@@ -89,11 +89,10 @@ async def login_submit(
             else "/admin"
         )
     else:
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {"next": next, "error": "Parolă incorectă."},
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        # Redirect back to Next.js login with error query param
+        return RedirectResponse(
+            url=f"/login?error=bad_password&next={next}",
+            status_code=status.HTTP_302_FOUND,
         )
 
     cookie_value = create_session_cookie(role)  # type: ignore[arg-type]
@@ -106,6 +105,15 @@ async def login_submit(
         samesite="lax",
     )
     return response
+
+
+@router.get("/api/auth/whoami")
+async def whoami(request: Request) -> JSONResponse:
+    """Returns the current user's role or 401 if not authenticated."""
+    role = get_current_role(request)
+    if not role:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return JSONResponse({"role": role})
 
 
 @router.get("/logout", include_in_schema=False)

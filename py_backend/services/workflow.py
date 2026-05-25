@@ -17,9 +17,11 @@ from pathlib import Path
 from typing import Optional
 
 import event_log
+from camera.ptz import PTZClient
 from camera.recording import RecordingManager, WorkflowSession
 from config import settings
 from services.alpr_service import ALPRService
+from services.customer_portal import CustomerPortalService
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +36,52 @@ class WorkflowRun:
     started_at: datetime
 
 
+def _select_winning_plate(
+    samples: list[dict],
+) -> tuple[Optional[str], Optional[float], str]:
+    """Pick winning plate by frequency first, then by sum_confidence as tiebreaker.
+
+    Only samples with confidence >= alpr_min_confidence are considered.
+    Returns (plate, avg_confidence, method).
+    """
+    counts: dict[str, list[float]] = {}
+    for s in samples:
+        plate = s.get("plate")
+        conf = float(s.get("confidence", 0.0))
+        if plate and conf >= float(settings.alpr_min_confidence):
+            counts.setdefault(plate, []).append(conf)
+    if not counts:
+        return None, None, "none"
+    ranked = sorted(
+        counts.items(),
+        key=lambda kv: (len(kv[1]), sum(kv[1])),
+        reverse=True,
+    )
+    winner_plate, confidences = ranked[0]
+    method = "frequency" if len(confidences) > 1 else "confidence"
+    return winner_plate, round(sum(confidences) / len(confidences), 1), method
+
+
 class WorkflowService:
     def __init__(
         self,
         recording_manager: RecordingManager,
         alpr_service: ALPRService,
+        ptz_client: Optional[PTZClient] = None,
+        customer_portal: Optional[CustomerPortalService] = None,
     ) -> None:
         self._recording_manager = recording_manager
         self._alpr_service = alpr_service
+        self._ptz = ptz_client
+        self._portal = customer_portal
         self._lock = asyncio.Lock()
         self._current_session: Optional[WorkflowSession] = None
+        self._ptz_running: bool = False
+        self._alpr_stop_event: Optional[asyncio.Event] = None
+        self._alpr_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
 
     def is_busy(self) -> bool:
-        return self._current_session is not None
+        return self._current_session is not None or self._ptz_running
 
     async def trigger(
         self,
@@ -54,29 +89,31 @@ class WorkflowService:
         duration: Optional[int] = None,
         source: str = "unknown",
     ) -> WorkflowRun:
+        """
+        Unified workflow trigger:
+        - Both cameras start recording for `recording_duration_seconds` (default 600s).
+        - PTZ runs in parallel: starts at "Piese" preset; after `ptz_home_recording_seconds`
+          (default 60s) moves to "Masina". Cameras are NOT touched by PTZ motion.
+        - ALPR loop runs in parallel using sub-stream snapshots (no main-stream conflict).
+        """
         async with self._lock:
             if self._current_session is not None:
                 raise RuntimeError("Workflow already active")
 
             session_id = uuid.uuid4().hex
-            effective_duration = duration if duration is not None else settings.recording_duration_seconds
-
-            event_log.banner(f"WORKFLOW START - source={source} duration={effective_duration}s")
-
-            # Create event directory
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
             event_dir = Path(settings.events_dir) / f"EVENT_{timestamp}"
             event_dir.mkdir(parents=True, exist_ok=True)
 
-            # Start recording on cameras
-            cameras = [1, 2]  # Both cameras by default
+            effective_duration = duration if duration is not None else settings.recording_duration_seconds
+            event_log.banner(f"WORKFLOW START - source={source} duration={effective_duration}s")
             stream = settings.workflow_record_stream or "main"
 
             try:
                 self._current_session = await self._recording_manager.start_workflow(
                     session_id=session_id,
                     event_dir=event_dir,
-                    cameras=cameras,
+                    cameras=[1, 2],
                     stream=stream,
                     duration=effective_duration,
                 )
@@ -84,14 +121,15 @@ class WorkflowService:
                 logger.error("[WORKFLOW] Failed to start recording: %s", exc)
                 raise
 
-            # ALPR snapshot if enabled
-            if settings.alpr_enabled:
-                try:
-                    await self._run_alpr_snapshot(event_dir)
-                except Exception as exc:
-                    logger.warning("[WORKFLOW] ALPR snapshot failed: %s", exc)
+            if self._ptz is not None:
+                asyncio.create_task(self._run_ptz_motion())
 
-            # Schedule automatic stop
+            if settings.alpr_enabled:
+                self._alpr_stop_event = asyncio.Event()
+                self._alpr_task = asyncio.create_task(
+                    self._alpr_loop(event_dir, self._alpr_stop_event)
+                )
+
             asyncio.create_task(self._auto_stop(effective_duration))
 
             return WorkflowRun(
@@ -99,94 +137,168 @@ class WorkflowService:
                 started_at=datetime.now(timezone.utc),
             )
 
-    async def _run_alpr_snapshot(self, event_dir: Path) -> None:
-        """Take snapshot from ALPR camera and run plate detection.
+    async def _run_ptz_motion(self) -> None:
+        """Move PTZ in parallel with recording. Does NOT touch the recording session.
 
-        Saves a structured JSON file (alpr.json) with `selected_plate`,
-        `selected_confidence`, and all detected `plates` — the shape consumed by
-        /api/events and the dashboard gallery.
+        Sequence:
+          t=0:  goto "Piese" preset
+          t=ptz_home_recording_seconds: goto "Masina" preset
+        The cameras keep recording continuously throughout.
         """
-        from camera.media import save_snapshot
+        if not self._ptz:
+            return
+        try:
+            if settings.ptz_preset_home:
+                logger.info("[WORKFLOW/PTZ] goto Piese (token=%s)", settings.ptz_preset_home)
+                try:
+                    await self._ptz.goto_preset(settings.ptz_preset_home)
+                except Exception as exc:
+                    logger.warning("[WORKFLOW/PTZ] goto Piese failed: %s", exc)
 
+            home_dur = max(0, int(settings.ptz_home_recording_seconds))
+            if home_dur > 0:
+                await asyncio.sleep(home_dur)
+
+            if settings.ptz_preset_secondary:
+                logger.info("[WORKFLOW/PTZ] goto Masina (token=%s)", settings.ptz_preset_secondary)
+                try:
+                    await self._ptz.goto_preset(settings.ptz_preset_secondary)
+                except Exception as exc:
+                    logger.warning("[WORKFLOW/PTZ] goto Masina failed: %s", exc)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("[WORKFLOW/PTZ] motion task error: %s", exc)
+
+    async def _alpr_loop(self, event_dir: Path, stop_event: asyncio.Event) -> None:
+        """Background task: take ALPR snapshots every alpr_interval_seconds until stopped.
+
+        Runs in parallel with recording. On each tick:
+        - Captures a JPEG snapshot from the ALPR camera.
+        - Runs plate detection. If a plate is found (confidence >= alpr_min_confidence),
+          saves the image as alpr_NNN.jpg and appends the sample.
+        - Blank snapshots are counted but not saved to disk.
+        At the end (when stop_event fires), aggregates all samples, picks the winner
+        by frequency + confidence, and writes alpr.json.
+        """
+        from camera.media import capture_snapshot_bytes
+
+        interval = settings.alpr_interval_seconds
         camera_idx = settings.alpr_camera
-        snapshot_path = event_dir / "alpr_start.jpg"
+        snapshot_stream = "sub" if settings.alpr_snapshot_stream == "sub" else "main"
+        start_delay = max(0, int(settings.alpr_start_delay_seconds))
+        samples: list[dict] = []
+        sample_index = 0
+        samples_total = 0
+
+        logger.info(
+            "[WORKFLOW/ALPR-LOOP] started — interval=%ds delay=%ds camera=%d stream=%s event=%s",
+            interval,
+            start_delay,
+            camera_idx,
+            snapshot_stream,
+            event_dir.name,
+        )
+
+        # Initial delay (e.g. wait for PTZ to reach the "Masina" preset before
+        # taking snapshots). After that, fires every `interval` seconds.
+        first_wait = start_delay if start_delay > 0 else interval
         try:
-            await save_snapshot(camera=camera_idx, quality="main", filepath=snapshot_path)
-        except Exception as exc:
-            logger.warning("[WORKFLOW] ALPR snapshot capture failed: %s", exc)
-            return
+            await asyncio.wait_for(stop_event.wait(), timeout=first_wait)
+        except asyncio.TimeoutError:
+            pass
 
-        if not snapshot_path.exists():
-            return
+        while not stop_event.is_set():
+            sample_index += 1
+            samples_total += 1
+            captured_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        try:
-            result = await self._alpr_service.predict_image(snapshot_path)
-        except Exception as exc:
-            logger.warning("[WORKFLOW] ALPR predict failed: %s", exc)
-            result = {
-                "enabled": True,
-                "selected_plate": None,
-                "selected_confidence": None,
-                "plates": [],
-                "error": str(exc)[:200],
-            }
-
-        alpr_json = event_dir / "alpr.json"
-        try:
-            alpr_json.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception as exc:
-            logger.warning("[WORKFLOW] Cannot write alpr.json: %s", exc)
-
-        plate = result.get("selected_plate")
-        if plate:
-            logger.info(
-                "[WORKFLOW] ALPR detected plate=%s conf=%s",
-                plate,
-                result.get("selected_confidence"),
-            )
-        else:
-            logger.info("[WORKFLOW] ALPR: no plate detected at start")
-
-    async def _retry_alpr_at_end(self, event_dir: Path) -> None:
-        """If start-ALPR found no plate, take an end-of-recording snapshot and retry.
-
-        Overwrites alpr.json only on success (so we keep the best result).
-        """
-        from camera.media import save_snapshot
-
-        alpr_json = event_dir / "alpr.json"
-        existing_plate = None
-        if alpr_json.exists():
             try:
-                existing_plate = (json.loads(alpr_json.read_text(encoding="utf-8")) or {}).get("selected_plate")
-            except Exception:
-                pass
-        if existing_plate:
-            return
-
-        end_snap = event_dir / "alpr_end.jpg"
-        try:
-            await save_snapshot(camera=settings.alpr_camera, quality="main", filepath=end_snap)
-        except Exception as exc:
-            logger.warning("[WORKFLOW] End snapshot failed: %s", exc)
-            return
-        if not end_snap.exists():
-            return
-
-        try:
-            result = await self._alpr_service.predict_image(end_snap)
-        except Exception as exc:
-            logger.warning("[WORKFLOW] End ALPR predict failed: %s", exc)
-            return
-
-        if result.get("selected_plate"):
-            try:
-                alpr_json.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
-                logger.info("[WORKFLOW] ALPR end-retry succeeded: plate=%s", result["selected_plate"])
+                img_bytes = await capture_snapshot_bytes(camera=camera_idx, quality=snapshot_stream)
             except Exception as exc:
-                logger.warning("[WORKFLOW] Cannot write alpr.json (retry): %s", exc)
-        else:
-            logger.info("[WORKFLOW] ALPR end-retry: still no plate")
+                logger.warning("[WORKFLOW/ALPR-LOOP] snapshot #%d failed: %s", sample_index, exc)
+            else:
+                try:
+                    # Predict on in-memory bytes via a temp file to avoid disk clutter for blanks.
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+                        tmp.write(img_bytes)
+                        tmp_path = Path(tmp.name)
+                    try:
+                        result = await self._alpr_service.predict_image(tmp_path)
+                    finally:
+                        tmp_path.unlink(missing_ok=True)
+
+                    plate = result.get("selected_plate")
+                    confidence = float(result.get("selected_confidence") or 0.0)
+                    all_plates = result.get("plates", [])
+
+                    if plate and confidence >= float(settings.alpr_min_confidence):
+                        filename = f"alpr_{sample_index:03d}.jpg"
+                        snap_path = event_dir / filename
+                        try:
+                            snap_path.write_bytes(img_bytes)
+                        except Exception as exc:
+                            logger.warning("[WORKFLOW/ALPR-LOOP] save snapshot failed: %s", exc)
+                            filename = None  # type: ignore[assignment]
+
+                        samples.append({
+                            "index": sample_index,
+                            "filename": filename,
+                            "captured_at": captured_at,
+                            "plate": plate,
+                            "confidence": confidence,
+                            "all_plates": all_plates,
+                        })
+                        logger.info(
+                            "[WORKFLOW/ALPR-LOOP] #%d plate=%s conf=%.1f",
+                            sample_index,
+                            plate,
+                            confidence,
+                        )
+                    else:
+                        logger.debug(
+                            "[WORKFLOW/ALPR-LOOP] #%d no plate (conf=%.1f)",
+                            sample_index,
+                            confidence,
+                        )
+
+                except Exception as exc:
+                    logger.warning("[WORKFLOW/ALPR-LOOP] predict #%d failed: %s", sample_index, exc)
+
+            # Wait for next tick or until stopped.
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            except asyncio.TimeoutError:
+                pass
+
+        # --- Aggregation ---
+        winner_plate, winner_conf, method = _select_winning_plate(samples)
+        alpr_json_data = {
+            "enabled": True,
+            "selected_plate": winner_plate,
+            "selected_confidence": winner_conf,
+            "selected_method": method,
+            "samples": samples,
+            "samples_total": samples_total,
+            "samples_with_plate": len(samples),
+        }
+
+        alpr_json = event_dir / "alpr.json"
+        try:
+            alpr_json.write_text(
+                json.dumps(alpr_json_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            logger.info(
+                "[WORKFLOW/ALPR-LOOP] done — plate=%s method=%s samples=%d/%d",
+                winner_plate,
+                method,
+                len(samples),
+                samples_total,
+            )
+        except Exception as exc:
+            logger.warning("[WORKFLOW/ALPR-LOOP] cannot write alpr.json: %s", exc)
 
     async def _auto_stop(self, duration_seconds: int) -> None:
         """Wait for duration then stop workflow."""
@@ -205,12 +317,19 @@ class WorkflowService:
             result = await self._recording_manager.stop_workflow()
 
             if result is not None:
-                # Files are now closed by ffmpeg — safe to do ALPR retry + rename.
-                if settings.alpr_enabled:
+                # Stop the ALPR loop and wait for aggregation before rename.
+                if self._alpr_stop_event is not None:
+                    self._alpr_stop_event.set()
+                if self._alpr_task is not None:
                     try:
-                        await self._retry_alpr_at_end(result.event_dir)
+                        await asyncio.wait_for(self._alpr_task, timeout=30)
+                    except asyncio.TimeoutError:
+                        logger.warning("[WORKFLOW] ALPR loop did not finish in 30s — continuing")
                     except Exception as exc:
-                        logger.warning("[WORKFLOW] End ALPR retry raised: %s", exc)
+                        logger.warning("[WORKFLOW] ALPR loop raised: %s", exc)
+                    self._alpr_task = None
+                self._alpr_stop_event = None
+
                 try:
                     await asyncio.to_thread(self._finalize_event_sync, result)
                 except Exception as exc:
@@ -337,12 +456,15 @@ class WorkflowService:
             str(final_path),
         ]
 
+        # Ample headroom: a 600s HD recording can take several minutes to re-encode
+        # even with ultrafast presets. 900s (15 min) is enough for 10-min sources at
+        # ≈1.5x realtime worst case while still avoiding indefinite hangs.
         try:
             proc = subprocess.run(
                 args,
                 capture_output=True,
                 text=True,
-                timeout=180,
+                timeout=900,
             )
         except subprocess.TimeoutExpired:
             logger.warning("[WORKFLOW] ffmpeg concat timed out for %s", raw_path.name)

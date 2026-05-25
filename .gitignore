@@ -1,7 +1,12 @@
 # Env - valorile reale (secrete, nu se urcă pe git)
 .env
-# .env_example SE urcă pe git (nu conține parole reale)
+.env.*
+# păstrăm doar exemplul de configurare
 !.env_example
+
+# Virtual environments locale
+.venv/
+venv/
 
 snapshots/*.jpg
 snapshots/*.jpeg
@@ -24,3 +29,6 @@ logs/
 
 # Git worktrees
 .worktrees/
+
+# Cursor/editor local artifacts
+.cursor/*.log

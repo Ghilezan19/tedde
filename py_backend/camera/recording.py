@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,23 @@ _FFMPEG_TERM_WAIT_SEC = 15.0
 
 # MP4 smaller than this after stop is treated as failed capture (truncated header / empty).
 MIN_WORKFLOW_MP4_BYTES = 8192
+
+# How many recent ffmpeg stderr lines to keep per recording (for journal on exit / early death).
+_STDERR_TAIL_MAX = 40
+
+# Redact user:password@ in URLs before writing to logs.
+_RTSP_CREDS_RE = re.compile(r"([a-zA-Z0-9_.-]+):([^@/\s]+)@")
+
+
+def _sanitize_log_line(text: str) -> str:
+    """Strip RTSP credentials from a log line so journalctl does not leak passwords."""
+    return _RTSP_CREDS_RE.sub(r"\1:***@", text)
+
+
+def _append_stderr_tail(meta: "RecordingMeta", line: str) -> None:
+    meta.stderr_tail.append(_sanitize_log_line(line))
+    if len(meta.stderr_tail) > _STDERR_TAIL_MAX:
+        meta.stderr_tail[:] = meta.stderr_tail[-_STDERR_TAIL_MAX:]
 
 
 def resolve_camera_file(event_dir: Path, cam: int) -> Path | None:
@@ -70,6 +88,8 @@ class RecordingMeta:
     camera: int
     stream: str
     started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    #: Last `_STDERR_TAIL_MAX` stderr lines from this ffmpeg process (sanitized).
+    stderr_tail: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -87,6 +107,9 @@ class WorkflowSession:
     recordings: dict[int, _RecordingProcess]
     planned_cameras: list[int] = field(default_factory=list)
     spawn_failed_cameras: list[int] = field(default_factory=list)
+    # Cameras whose ffmpeg process exited before the planned duration. Filled
+    # by the watchdog task and surfaced in workflow_status / admin payloads.
+    died_cameras: list[int] = field(default_factory=list)
 
 
 class RecordingManager:
@@ -193,8 +216,35 @@ class RecordingManager:
                 planned_cameras=list(cameras),
                 spawn_failed_cameras=spawn_failed,
             )
+            for camera, rec in recordings.items():
+                asyncio.create_task(self._watchdog_recording(rec, duration))
             logger.info("[RECORD] Workflow started: %s", session_id)
             return self._workflow
+
+    async def add_camera_to_workflow(self, camera: int, stream: str) -> None:
+        """Add a camera to an already-running workflow session (e.g. cam1 joins at Masina phase)."""
+        async with self._lock:
+            if self._workflow is None:
+                raise RuntimeError("No active workflow to add camera to.")
+            if camera in self._workflow.recordings:
+                logger.warning("[RECORD] Camera %d already recording in workflow", camera)
+                return
+            filepath = self._workflow.event_dir / f"camera{camera}.mp4"
+            try:
+                rec = await self._spawn_recording(
+                    filepath=filepath,
+                    camera=camera,
+                    stream=stream,
+                )
+                self._workflow.recordings[camera] = rec
+                # Remaining duration for this camera = full duration minus elapsed.
+                elapsed = int((datetime.now(timezone.utc) - self._workflow.started_at).total_seconds())
+                remaining = max(0, self._workflow.duration_seconds - elapsed)
+                asyncio.create_task(self._watchdog_recording(rec, remaining))
+                logger.info("[RECORD] Camera %d added to workflow %s", camera, self._workflow.session_id)
+            except Exception:
+                logger.exception("[RECORD] Failed to add camera %d to workflow", camera)
+                raise
 
     async def stop_workflow(self) -> Optional[WorkflowSession]:
         async with self._lock:
@@ -223,6 +273,7 @@ class RecordingManager:
             "cameras": sorted(wf.recordings.keys()),
             "plannedCameras": list(wf.planned_cameras),
             "spawnFailedCameras": list(wf.spawn_failed_cameras),
+            "diedCameras": list(wf.died_cameras),
         }
 
     def update_workflow_event_dir(self, event_dir: Path) -> None:
@@ -258,7 +309,11 @@ class RecordingManager:
             "-fflags", "+genpts+discardcorrupt",
             "-use_wallclock_as_timestamps", "1",
             "-rtsp_transport", "tcp",
-            "-timeout", "5000000",
+            # Socket I/O timeout (µs): 60s. In ffmpeg 6.x the older `-stimeout`
+            # CLI flag was removed; `-timeout` is now the canonical generic timeout
+            # and works for RTSP over TCP.
+            # NOTE: -reconnect* flags are HTTP-only in ffmpeg; not valid for RTSP.
+            "-timeout", "60000000",
             "-i", rtsp_url,
             # ── Video encoding: ultrafast preset for realtime, CRF 23 keeps good
             #    quality while producing files ~3x smaller than CRF 18.
@@ -288,7 +343,7 @@ class RecordingManager:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.PIPE,
         )
-        asyncio.create_task(self._log_stderr(process, camera))
+        asyncio.create_task(self._log_stderr(process, camera, meta))
         return _RecordingProcess(meta=meta, process=process)
 
     async def _stop_recording(self, rec: _RecordingProcess) -> RecordingMeta:
@@ -310,22 +365,103 @@ class RecordingManager:
                 with contextlib.suppress(Exception):
                     await rec.process.wait()
 
+        rc = rec.process.returncode
+        elapsed = int((datetime.now(timezone.utc) - rec.meta.started_at).total_seconds())
         size_mb = rec.meta.filepath.stat().st_size / 1024 / 1024 if rec.meta.filepath.exists() else 0
+        logger.info(
+            "[RECORD] ffmpeg cam%d exit rc=%s elapsed=%ds file=%s size=%.2f MB",
+            rec.meta.camera,
+            rc,
+            elapsed,
+            rec.meta.filename,
+            size_mb,
+        )
         logger.info("[RECORD] Saved: %s (%.2f MB)", rec.meta.filename, size_mb)
+        # Unexpected exit codes: log sanitized stderr tail for root-cause analysis.
+        if rc not in (0, None):
+            tail = "\n".join(rec.meta.stderr_tail[-15:])
+            logger.warning(
+                "[RECORD] ffmpeg cam%d non-zero exit (rc=%s), stderr tail:\n%s",
+                rec.meta.camera,
+                rc,
+                tail or "(no stderr captured)",
+            )
         return rec.meta
 
     async def _auto_stop_manual(self, duration: int) -> None:
         await asyncio.sleep(duration)
         await self.stop_manual()
 
+    async def _watchdog_recording(self, rec: _RecordingProcess, expected_duration: int) -> None:
+        """Detect when an ffmpeg recording process exits before its expected duration.
+
+        We only mark the camera as "died" — we do NOT auto-restart, because a dying
+        ffmpeg usually means the RTSP source itself is unstable and a restart loop
+        would just hammer the camera. The marker is surfaced via workflow_status() so
+        the admin UI can flag the recording as incomplete.
+        """
+        try:
+            await rec.process.wait()
+        except asyncio.CancelledError:
+            return
+
+        elapsed = int((datetime.now(timezone.utc) - rec.meta.started_at).total_seconds())
+        wf = self._workflow
+        # If the workflow has already been stopped (or replaced), the exit is expected.
+        if wf is None or rec.meta.camera not in wf.recordings:
+            return
+        # Tolerance: ffmpeg may exit a couple of seconds early on graceful stop.
+        if elapsed + 5 < expected_duration:
+            rc = rec.process.returncode
+            tail = "\n".join(rec.meta.stderr_tail[-20:])
+            logger.error(
+                "[RECORD] cam%d died at t=%ds (expected %ds) rc=%s — file likely truncated\n"
+                "stderr tail:\n%s",
+                rec.meta.camera,
+                elapsed,
+                expected_duration,
+                rc,
+                tail or "(no stderr captured)",
+            )
+            if rec.meta.camera not in wf.died_cameras:
+                wf.died_cameras.append(rec.meta.camera)
+
     @staticmethod
-    async def _log_stderr(process: asyncio.subprocess.Process, camera: int) -> None:
+    async def _log_stderr(
+        process: asyncio.subprocess.Process,
+        camera: int,
+        meta: RecordingMeta,
+    ) -> None:
+        """Forward ffmpeg stderr lines to our logger.
+
+        Only obvious fatal patterns are surfaced as ERROR; everything else stays at
+        DEBUG to avoid drowning the log when ffmpeg emits warnings such as
+        "non-existing PPS 0 referenced" which are benign for IP-camera streams.
+        """
         if process.stderr is None:
             return
+        fatal_tokens = (
+            "error opening input",
+            "connection refused",
+            "connection timed out",
+            "server returned 5",
+            "server returned 4",
+            "no route to host",
+            "could not write header",
+            "broken pipe",
+            "end of file",
+            "invalid data",
+        )
         async for line in process.stderr:
             text = line.decode(errors="replace").strip()
-            if any(token in text.lower() for token in ("error", "invalid", "failed")):
-                logger.error("[ffmpeg cam%s] %s", camera, text)
+            if text:
+                _append_stderr_tail(meta, text)
+            low = text.lower()
+            safe = _sanitize_log_line(text)
+            if any(tok in low for tok in fatal_tokens):
+                logger.error("[ffmpeg cam%s] %s", camera, safe)
+            else:
+                logger.debug("[ffmpeg cam%s] %s", camera, safe)
 
     @staticmethod
     def _build_timestamped_name(camera: int) -> str:

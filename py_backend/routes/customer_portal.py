@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from config import settings
 from services.customer_portal import (
@@ -31,6 +31,10 @@ RATING_OPTIONS = [
 ]
 
 
+# Reject UI placeholder pentru plăcuță necunoscută din admin („—”).
+_LICENSE_PLACEHOLDERS = frozenset({"\u2014", "-"})
+
+
 class CreateCustomerLinkBody(BaseModel):
     event_id: str = Field(min_length=1, description="ID eveniment (folder name in events/)")
     license_plate: str = Field(min_length=1, description="Numărul de înmatriculare")
@@ -38,6 +42,23 @@ class CreateCustomerLinkBody(BaseModel):
     mechanic_name: str = Field(min_length=1, description="Numele mecanicului")
     phone_number: str = Field(min_length=1, description="Nr. telefon destinatar SMS")
     send_sms: bool = Field(default=True, description="Trimite SMS automat cu link-ul")
+
+    @field_validator("license_plate")
+    @classmethod
+    def validate_license_plate(cls, value: object) -> str:
+        if not isinstance(value, str):
+            raise ValueError("license_plate trebuie să fie text")
+        raw = value.strip()
+        if not raw or raw in _LICENSE_PLACEHOLDERS:
+            raise ValueError(
+                "Introduceți un număr de înmatriculare valid — nu este permis placeholderul pentru plăcuță necunoscută."
+            )
+        alnum = "".join(c for c in raw.upper() if c.isalnum())
+        if len(alnum) < 4 or len(alnum) > 14:
+            raise ValueError(
+                "Numărul de înmatriculare trebuie să aibă între 4 și 14 caractere alfanumerice (după omiterea spațiilor și cratimelor)."
+            )
+        return alnum
 
 
 class SendVideoLinkBody(BaseModel):
@@ -260,10 +281,96 @@ async def send_video_link(request: Request, body: SendVideoLinkBody) -> dict:
     }
 
 
+class CreateLinkByPlateBody(BaseModel):
+    license_plate: str = Field(min_length=1, description="Numărul de înmatriculare")
+    owner_name: str = Field(min_length=1, description="Numele proprietarului")
+    mechanic_name: str = Field(min_length=1, description="Numele mecanicului")
+    phone_number: str = Field(min_length=1, description="Numărul de telefon")
+    send_sms: bool = Field(default=True, description="Trimite SMS automat")
+
+
+@router.post(
+    "/api/customer-links/by-plate",
+    tags=["Customer Portal"],
+    summary="Creează link client pentru cel mai recent event cu placa dată",
+)
+async def create_customer_link_by_plate(request: Request, body: CreateLinkByPlateBody) -> dict:
+    """Match-uiește cel mai recent eveniment ALPR cu placa dată."""
+    from config import settings
+    from pathlib import Path
+
+    events_dir = Path(settings.events_dir)
+    if not events_dir.exists():
+        raise HTTPException(status_code=404, detail="Directorul events nu există")
+
+    # Find all event dirs matching the plate pattern
+    matching_events = []
+    for event_dir in events_dir.iterdir():
+        if not event_dir.is_dir() or not event_dir.name.startswith("EVENT_"):
+            continue
+
+        alpr_json = event_dir / "alpr.json"
+        if not alpr_json.exists():
+            continue
+
+        try:
+            import json
+            alpr_data = json.loads(alpr_json.read_text(encoding="utf-8"))
+            if alpr_data.get("selected_plate", "").upper() == body.license_plate.upper():
+                matching_events.append((event_dir.stat().st_ctime, event_dir.name))
+        except Exception:
+            pass
+
+    if not matching_events:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Nu s-a găsit niciun eveniment cu plăcuța {body.license_plate!r}",
+        )
+
+    # Sort by creation time (newest first) and pick the most recent
+    matching_events.sort(key=lambda x: x[0], reverse=True)
+    event_id = matching_events[0][1]
+
+    # Now create the link using the existing logic
+    try:
+        result = await _service(request).create_link(
+            event_id=event_id,
+            license_plate=body.license_plate,
+            owner_name=body.owner_name,
+            mechanic_name=body.mechanic_name,
+            phone_number=body.phone_number,
+            send_sms=body.send_sms,
+        )
+    except CustomerPortalOutOfTokens as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+    except CustomerPortalNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except CustomerPortalConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except CustomerPortalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "success": True,
+        "link_id": result["link_id"],
+        "event_id": result["event_id"],
+        "token": result["token"],
+        "public_url": result["public_url"],
+        "sms_status": result["sms_status"],
+        "sms_error": result["sms_error"],
+        "expires_at": result["expires_at"],
+        "created_at": result["created_at"],
+        "warnings": result.get("warnings", []),
+        "recording_partial": result.get("recording_partial", False),
+        "sms_preview": result.get("sms_preview"),
+    }
+
+
 @router.post(
     "/api/customer-links",
     tags=["Customer Portal"],
     summary="Creează link client pentru un event_id specific",
+    include_in_schema=False,
 )
 async def create_customer_link(request: Request, body: CreateCustomerLinkBody) -> dict:
     try:
@@ -300,7 +407,7 @@ async def create_customer_link(request: Request, body: CreateCustomerLinkBody) -
     }
 
 
-@router.get("/api/customer-links/{link_id}")
+@router.get("/api/customer-links/{link_id}", include_in_schema=False)
 async def get_customer_link(link_id: int, request: Request) -> dict:
     try:
         return await _service(request).get_link(link_id)
@@ -310,7 +417,7 @@ async def get_customer_link(link_id: int, request: Request) -> dict:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.post("/api/customer-links/{link_id}/resend")
+@router.post("/api/customer-links/{link_id}/resend", include_in_schema=False)
 async def resend_customer_link(link_id: int, request: Request) -> dict:
     try:
         result = await _service(request).resend(link_id)
@@ -459,3 +566,72 @@ async def customer_portal_camera1(token: str, request: Request):
 @router.get(f"{PORTAL_PREFIX}/{{token}}/video/camera2", include_in_schema=False)
 async def customer_portal_camera2(token: str, request: Request):
     return await _video_response(request, token, 2)
+
+
+# ── JSON endpoints for Next.js frontend ──────────────────────────────────────
+
+@router.get("/api/customer-portal/brand", include_in_schema=False)
+async def customer_portal_brand() -> dict:
+    """Returns branding/theme config for the Next.js portal layout."""
+    return {
+        "brand_name": settings.portal_brand_name,
+        "brand_subtitle": "Constatare video service",
+        "footer_phone": settings.portal_footer_phone,
+        "footer_email": settings.portal_footer_email,
+        "footer_address": settings.portal_footer_address,
+        "footer_hours": settings.portal_footer_hours,
+        "theme_accent": settings.portal_theme_accent,
+        "theme_dark": settings.portal_theme_dark,
+        "logo_url": settings.portal_logo_url,
+        "bumper_video_url": settings.portal_bumper_video_url,
+        "rating_options": RATING_OPTIONS,
+    }
+
+
+@router.get("/api/customer-portal/record/{token}", include_in_schema=False)
+async def customer_portal_record_json(token: str, request: Request) -> dict:
+    """Returns portal record as JSON for Next.js SSR rendering."""
+    try:
+        record = await _service(request).get_portal_record(token)
+    except CustomerPortalExpired as exc:
+        raise HTTPException(status_code=410, detail={"error": "expired", "message": str(exc)}) from exc
+    except CustomerPortalNotFound as exc:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "message": str(exc)}) from exc
+    except CustomerPortalConflict as exc:
+        raise HTTPException(status_code=409, detail={"error": "conflict", "message": str(exc)}) from exc
+
+    return {
+        "portal": record,
+        "event_meta": _event_metadata(record),
+        "portal_video_card_count": _portal_video_card_count(record),
+        **_portal_base_context(),
+    }
+
+
+class QuizSubmitBody(BaseModel):
+    rating_overall: int = Field(ge=1, le=5)
+    rating_explanation: int = Field(ge=1, le=5)
+    free_text: str = Field(default="")
+
+
+@router.post("/api/customer-portal/{token}/quiz", include_in_schema=False)
+async def customer_portal_quiz_json(token: str, body: QuizSubmitBody, request: Request) -> dict:
+    """JSON quiz submission endpoint for Next.js Server Actions."""
+    try:
+        await _service(request).submit_feedback(
+            token,
+            rating_overall=body.rating_overall,
+            rating_explanation=body.rating_explanation,
+            free_text=body.free_text,
+        )
+    except CustomerPortalConflict:
+        # Already submitted — treat as success (idempotent)
+        return {"ok": True, "quiz_completed": True, "already_submitted": True}
+    except CustomerPortalExpired as exc:
+        raise HTTPException(status_code=410, detail={"error": "expired", "message": str(exc)}) from exc
+    except CustomerPortalNotFound as exc:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "message": str(exc)}) from exc
+    except CustomerPortalError as exc:
+        raise HTTPException(status_code=400, detail={"error": "validation", "message": str(exc)}) from exc
+
+    return {"ok": True, "quiz_completed": True}

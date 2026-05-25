@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-# Instalează și configurează nginx ca reverse proxy pentru video.scoala-ai.ro
-# Rulează cu: sudo bash install_nginx_proxy.sh
+# Instalează și configurează nginx ca reverse proxy.
+#
+# Domeniul implicit: video.scoala-ai.ro. Pentru video.tedde-auto.ro (config în
+# repo: nginx/video.tedde-auto.ro.conf), rulează de exemplu:
+#   DOMAIN=video.tedde-auto.ro sudo -E bash install_nginx_proxy.sh
+#
+# DNS: înainte ca numele de host să răspundă de pe acest server, setează
+# înregistrări A/AAAA spre IP-ul public al mașinii (nu doar alte hosturi random).
+# SSL/Cloudflare: alege modul (Flexible vs Full) în funcție de certificatul de pe
+# origin; vezi comentariile de la finalul acestui script.
 
 set -euo pipefail
 
-DOMAIN="video.scoala-ai.ro"
-BACKEND_PORT="8000"
+DOMAIN="${DOMAIN:-video.scoala-ai.ro}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+NEXT_PORT="${NEXT_PORT:-3000}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF_SRC="$SCRIPT_DIR/nginx/${DOMAIN}.conf"
 CONF_DEST="/etc/nginx/sites-available/${DOMAIN}"
@@ -16,7 +25,8 @@ echo ""
 
 # 1. Verifică dacă rulează ca root
 if [ "$EUID" -ne 0 ]; then
-    echo "Trebuie rulat cu sudo: sudo bash install_nginx_proxy.sh"
+    echo "Trebuie rulat cu sudo, ex: sudo bash install_nginx_proxy.sh"
+    echo "Sau: DOMAIN=video.tedde-auto.ro sudo -E bash install_nginx_proxy.sh"
     exit 1
 fi
 
@@ -37,8 +47,33 @@ cp "$CONF_SRC" "$CONF_DEST"
 echo "✓ Config copiat în $CONF_DEST"
 echo ""
 
+# 3b. Fragmente nginx (location-uri partajate pentru video.tedde-auto.ro)
+INCLUDES_SRC="$SCRIPT_DIR/nginx/includes"
+INCLUDES_DEST="/etc/nginx/includes"
+if [[ -d "$INCLUDES_SRC" ]]; then
+  echo "2b. Fragmente include în $INCLUDES_DEST ..."
+  install -d -m 0755 "$INCLUDES_DEST"
+  shopt -s nullglob
+  for f in "$INCLUDES_SRC"/*.conf; do
+    [[ -f "$f" ]] || continue
+    cp -a "$f" "$INCLUDES_DEST/"
+    echo "  $(basename "$f")"
+  done
+  shopt -u nullglob
+  echo "✓ Includes actualizate"
+  echo ""
+fi
+
+# 3c. TLS pentru domeniul Tedde (443 + fișiere PEM; fără asta nginx -t eșuează)
+if [[ "$DOMAIN" == "video.tedde-auto.ro" ]] && [[ -x "$SCRIPT_DIR/deploy/ensure-ssl-tedde.sh" ]]; then
+  echo "2c. Certificat TLS (self-signed inițial; poți trece la LE: deploy/ensure-ssl-tedde.sh letsencrypt)..."
+  bash "$SCRIPT_DIR/deploy/ensure-ssl-tedde.sh" selfsigned
+  echo "✓ TLS"
+  echo ""
+fi
+
 # 4. Activare site
-echo "3. Activare site..."
+echo "3. Activare site (symlink)..."
 ln -sf "$CONF_DEST" "$CONF_LINK"
 echo "✓ Site activat"
 echo ""
@@ -82,15 +117,15 @@ echo ""
 
 echo "=== Setup complet ==="
 echo ""
-echo "Nginx proxy: $DOMAIN -> 127.0.0.1:$BACKEND_PORT"
+echo "Nginx: $DOMAIN -> FastAPI 127.0.0.1:$BACKEND_PORT, Next.js 127.0.0.1:$NEXT_PORT"
 echo ""
 echo "Următorii pași:"
-echo "  1. Asigură-te că serverul Python rulează pe port $BACKEND_PORT"
-echo "  2. În router, forward port 80 extern -> $(hostname -I | awk '{print $1}'):80"
-echo "  3. În Cloudflare, setează SSL mode: Flexible (sau Full dacă configurezi HTTPS)"
-echo "  4. Testează: curl -H 'Host: $DOMAIN' http://localhost"
+echo "  1. Pornește FastAPI pe $BACKEND_PORT și Next (pnpm start) pe $NEXT_PORT; vezi deploy/tedde-*.service"
+echo "  2. Asigură-te că DNS (A/AAAA) pentru $DOMAIN indică acest server"
+echo "  3. În router, forward port 80 extern -> $(hostname -I | awk '{print $1}'):80"
+echo "  4. În Cloudflare, setează SSL mode: Flexible (sau Full dacă configurezi HTTPS pe origin)"
+echo "  5. Test: curl -sI -H 'Host: $DOMAIN' http://127.0.0.1/ | head -1"
 echo ""
-echo "Pentru HTTPS direct pe server (opțional, după port forwarding):"
-echo "  sudo apt install -y certbot python3-certbot-nginx"
-echo "  sudo certbot --nginx -d $DOMAIN"
+echo "HTTPS (video.tedde-auto.ro): cert self-signed la instalare; pentru Let's Encrypt:"
+echo "  sudo bash deploy/ensure-ssl-tedde.sh letsencrypt   # după ce DNS+port 80 merg"
 echo ""

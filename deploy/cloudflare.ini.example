@@ -1,0 +1,7 @@
+# Copiază la o cale privată (ex. ~/.secrets/cloudflare-video.ini), chmod 600.
+# Token din Cloudflare Dashboard → My Profile → API Tokens:
+#   Create Token → Edit zone DNS (permisiune pe zona unde e tedde-auto.ro).
+# Certbot cere certificat doar pentru subdomeniul video (implicit -d video.tedde-auto.ro);
+# creează temporar TXT la _acme-challenge.video — nu schimbă apex @ sau alte hosturi.
+#
+dns_cloudflare_api_token = PASTE_TOKEN_HERE

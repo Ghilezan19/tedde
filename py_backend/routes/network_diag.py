@@ -175,7 +175,6 @@ async def net_reach(
     host: str = Query(..., min_length=1, max_length=253),
     port: int = Query(80, ge=1, le=65535),
     timeout: float = Query(1.5, ge=0.1, le=10.0),
-    role: str = Depends(require_superadmin),
 ) -> dict:
     # Resolve hostname to make private-IP enforcement effective
     try:

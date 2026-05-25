@@ -537,8 +537,10 @@ class CustomerPortalService:
 
     def _build_sms_text(self, row: dict[str, Any]) -> str:
         return (
-            f"Tedde Auto: {row['owner_name']}, am pregatit constatarea video pentru masina "
-            f"{row['license_plate']}. Acceseaza linkul securizat: {row['public_url']}"
+            f"TEDDE AUTO: Stimate(a) {row['owner_name']}, constatarea video pentru autovehiculul "
+            f"{row['license_plate']} este disponibila. "
+            f"Accesati linkul: {row['public_url']}. "
+            f"Acesta este un mesaj automat, va rugam sa nu raspundeti la acest mesaj."
         )
 
     async def create_link(
@@ -564,6 +566,10 @@ class CustomerPortalService:
 
         if not clean_license_plate:
             raise CustomerPortalError("license_plate is required")
+        if len("".join(c for c in clean_license_plate.upper() if c.isalnum())) < 4:
+            raise CustomerPortalError(
+                "Introduceți un număr de înmatriculare valid (minimum 4 caractere alfanumerice)."
+            )
         if not clean_owner_name:
             raise CustomerPortalError("owner_name is required")
         if not clean_mechanic_name:
@@ -651,6 +657,52 @@ class CustomerPortalService:
         out["recording_partial"] = bool(event_info.get("recording_partial"))
         out["sms_preview"] = sms_preview
         return out
+
+    def auto_register_event_sync(self, event_id: str, event_folder: str, license_plate: str) -> int | None:
+        """Create a minimal customer_link for an event without owner/phone (no SMS sent).
+
+        Skips creation if a link already exists for this event_id.
+        Returns the new link id or None if already existed / plate unknown.
+        """
+        if not license_plate or license_plate.startswith("NOPLATE"):
+            return None
+        with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT id FROM customer_links WHERE event_id = ?", (event_id,)
+            ).fetchone()
+            if existing:
+                return None
+            now = datetime.now(timezone.utc)
+            expires_at = now + timedelta(days=settings.customer_link_ttl_days)
+            token = secrets.token_urlsafe(24)
+            public_url = self._build_public_url(token)
+            cur = conn.execute(
+                """
+                INSERT INTO customer_links (
+                    event_id, event_folder, token, license_plate, owner_name,
+                    mechanic_name, phone_number, public_url, sms_status,
+                    sms_error, created_at, sent_at, expires_at, quiz_completed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    event_folder,
+                    token,
+                    license_plate,
+                    "",
+                    "",
+                    "",
+                    public_url,
+                    "pending",
+                    None,
+                    now.isoformat(),
+                    None,
+                    expires_at.isoformat(),
+                    None,
+                ),
+            )
+            conn.commit()
+            return int(cur.lastrowid)
 
     def _insert_link_sync(self, payload: dict[str, Any]) -> int:
         with self._connect() as conn:

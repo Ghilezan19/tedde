@@ -1,0 +1,19 @@
+[Unit]
+Description=Tedde Next.js (next start on :3000)
+After=network-online.target tedde-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tedde-auto
+Group=tedde-auto
+EnvironmentFile=-/etc/default/tedde
+ExecStart=/bin/bash -c 'set -a; [ -f /etc/default/tedde ] && . /etc/default/tedde; set +a; : "${TEDDE_ROOT:?}"; exec "$TEDDE_ROOT/deploy/tedde-next-start.sh"'
+
+Restart=always
+RestartSec=4
+StartLimitIntervalSec=120
+StartLimitBurst=8
+
+[Install]
+WantedBy=multi-user.target

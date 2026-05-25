@@ -41,7 +41,7 @@ def _gateway_url() -> str:
 
 
 class SendSmsBody(BaseModel):
-    phone: str = Field(min_length=1, description="Numărul de telefon destinație")
+    phone: str = Field(alias="to", min_length=1, description="Numărul de telefon destinație")
     message: str = Field(min_length=1, description="Conținutul mesajului SMS")
 
 

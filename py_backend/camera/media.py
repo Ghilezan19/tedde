@@ -62,6 +62,13 @@ async def _log_ffmpeg_stderr(proc: asyncio.subprocess.Process, prefix: str) -> N
 
 async def capture_snapshot_bytes(camera: int = 1, quality: str = "main") -> bytes:
     rtsp_url = build_rtsp_url(camera=camera, stream=quality)
+    # #region agent log
+    import json as _json, time as _time
+    _safe_url = rtsp_url.replace(settings.camera_password, "***").replace(settings.camera2_password, "***")
+    try:
+        open("/home/tedde-auto/.cursor/debug-dcfcf3.log", "a").write(_json.dumps({"sessionId": "dcfcf3", "hypothesisId": "A,B,D", "location": "media.py:capture_snapshot_bytes", "message": "snapshot_start", "data": {"camera": camera, "quality": quality, "rtsp_url": _safe_url, "ffmpeg_path": settings.ffmpeg_path}, "timestamp": int(_time.time() * 1000)}) + "\n")
+    except Exception: pass
+    # #endregion
     args = [
         settings.ffmpeg_path,
         "-rtsp_transport", "tcp",
@@ -97,6 +104,12 @@ async def capture_snapshot_bytes(camera: int = 1, quality: str = "main") -> byte
             if any(token in lower for token in ("error", "failed", "invalid", "refused")):
                 logger.error("[SNAPSHOT-CAM%s] %s", camera, text)
 
+    # #region agent log
+    try:
+        import json as _json, time as _time
+        open("/home/tedde-auto/.cursor/debug-dcfcf3.log", "a").write(_json.dumps({"sessionId": "dcfcf3", "hypothesisId": "A,B,C", "location": "media.py:capture_snapshot_bytes_result", "message": "snapshot_result", "data": {"camera": camera, "returncode": proc.returncode, "stdout_len": len(stdout), "stderr_tail": stderr.decode(errors="replace")[-300:] if stderr else ""}, "timestamp": int(_time.time() * 1000)}) + "\n")
+    except Exception: pass
+    # #endregion
     if proc.returncode != 0 or not stdout:
         raise RuntimeError("Nu s-a putut captura snapshot-ul")
     return stdout
@@ -174,6 +187,13 @@ async def mjpeg_stream(
     width: int | None,
 ) -> AsyncIterator[bytes]:
     rtsp_url = build_rtsp_url(camera=camera, stream=quality)
+    # #region agent log
+    import json as _json, time as _time
+    _safe_url2 = rtsp_url.replace(settings.camera_password, "***").replace(settings.camera2_password, "***")
+    try:
+        open("/home/tedde-auto/.cursor/debug-dcfcf3.log", "a").write(_json.dumps({"sessionId": "dcfcf3", "hypothesisId": "A,B,D", "location": "media.py:mjpeg_stream", "message": "stream_start", "data": {"camera": camera, "quality": quality, "fps": fps, "rtsp_url": _safe_url2, "ffmpeg_path": settings.ffmpeg_path}, "timestamp": int(_time.time() * 1000)}) + "\n")
+    except Exception: pass
+    # #endregion
     args = [
         settings.ffmpeg_path,
         "-rtsp_transport", "tcp",
@@ -196,6 +216,9 @@ async def mjpeg_stream(
     )
     stderr_task = asyncio.create_task(_log_ffmpeg_stderr(proc, f"STREAM-CAM{camera}"))
     buffer = bytearray()
+    # #region agent log
+    _frames_sent = 0
+    # #endregion
     try:
         while True:
             if await request.is_disconnected():
@@ -218,8 +241,17 @@ async def mjpeg_stream(
                     b"Content-Type: image/jpeg\r\n"
                     + f"Content-Length: {len(frame)}\r\n\r\n".encode()
                 )
+                # #region agent log
+                _frames_sent += 1
+                # #endregion
                 yield headers + frame + b"\r\n"
     finally:
+        # #region agent log
+        import json as _json, time as _time
+        try:
+            open("/home/tedde-auto/.cursor/debug-dcfcf3.log", "a").write(_json.dumps({"sessionId": "dcfcf3", "hypothesisId": "E", "location": "media.py:mjpeg_stream_end", "message": "stream_end", "data": {"camera": camera, "frames_sent": _frames_sent, "returncode": proc.returncode}, "timestamp": int(_time.time() * 1000)}) + "\n")
+        except Exception: pass
+        # #endregion
         stderr_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await stderr_task
